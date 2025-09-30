@@ -1,0 +1,69 @@
+services:
+  # Módulo A - Microserviço gRPC (Node.js)
+  modulo-a:
+    build:
+      context: .
+      dockerfile: modulo_A/Dockerfile
+    container_name: modulo-a-grpc
+    ports:
+      - "50051:50051"
+    networks:
+      - grpc-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "50051"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Módulo B - Microserviço gRPC (Node.js)
+  modulo-b:
+    build:
+      context: .
+      dockerfile: modulo_B/Dockerfile
+    container_name: modulo-b-grpc
+    ports:
+      - "50052:50052"
+    networks:
+      - grpc-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "50052"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Módulo P - Gateway/Proxy (Python FastAPI)
+  modulo-p:
+    build:
+      context: .
+      dockerfile: modulo_P/Dockerfile
+    container_name: modulo-p-gateway
+    ports:
+      - "8000:8000"
+    networks:
+      - grpc-network
+    depends_on:
+      - modulo-a
+      - modulo-b
+    environment:
+      - MODULO_A_HOST=modulo-a
+      - MODULO_A_PORT=50051
+      - MODULO_B_HOST=modulo-b
+      - MODULO_B_PORT=50052
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  grpc-network:
+    driver: bridge
+    name: projeto-distribuido-network
+
+# Volumes para persistência (opcional)
+volumes:
+  logs:
+    driver: local

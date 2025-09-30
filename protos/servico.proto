@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package servicoapp;
+
+// Serviço A - Método Unary
+service ServicoA {
+    // Método unary que processa uma tarefa simples
+    rpc RealizarTarefaA(RequestA) returns (ResponseA) {}
+}
+
+// Serviço B - Método Server-streaming
+service ServicoB {
+    // Método server-streaming que retorna múltiplas respostas
+    rpc RealizarTarefaB(RequestB) returns (stream ResponseB) {}
+}
+
+// Mensagens para o Serviço A
+message RequestA {
+    string id = 1;
+    string data = 2;
+    string operation = 3;
+}
+
+message ResponseA {
+    string id = 1;
+    string result = 2;
+    string message = 3;
+    int32 status_code = 4;
+}
+
+// Mensagens para o Serviço B
+message RequestB {
+    string id = 1;
+    string data = 2;
+    int32 count = 3;  // Número de respostas a serem enviadas no stream
+}
+
+message ResponseB {
+    string id = 1;
+    string result = 2;
+    string message = 3;
+    int32 sequence_number = 4;
+    bool is_final = 5;
+}
