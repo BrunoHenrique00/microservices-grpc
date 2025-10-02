@@ -9,12 +9,24 @@ pids
 *.seed
 *.pid.lock
 
-# Runtime data
-.DS_Store
-.vscode/
-.idea/
+# Node.js
+node_modules/
+modulo_A/node_modules/
+modulo_B/node_modules/
+.npm
+.eslintcache
+*.tgz
+.yarn-integrity
+.cache/
+.parcel-cache/
 
 # Python
+venv/
+.venv
+env/
+ENV/
+env.bak/
+venv.bak/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -26,6 +38,75 @@ dist/
 downloads/
 eggs/
 .eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# VSCode
+.vscode/
+.idea/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eggs/
+*.pid
+*.seed
+*.pid.lock
+
+# Docker
+.dockerignore
+
+# Sistema
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# Outros
+.env
+.env.local
+
+# Generated gRPC files
+*_pb2.py
+*_pb2_grpc.py
+*_pb2.js
+*_grpc_pb.js
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Database
+*.db
+*.sqlite3
 lib/
 lib64/
 parts/

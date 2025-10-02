@@ -9,12 +9,18 @@
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.9.14",
-    "@grpc/proto-loader": "^0.7.10"
+    "@grpc/proto-loader": "^0.7.10",
+    "express": "^5.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
   },
-  "keywords": ["grpc", "microservice", "nodejs", "streaming"],
+  "keywords": [
+    "grpc",
+    "microservice",
+    "nodejs",
+    "streaming"
+  ],
   "author": "Projeto Distribuído",
   "license": "MIT"
 }
