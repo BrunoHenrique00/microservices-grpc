@@ -42,3 +42,44 @@ message ResponseB {
     int32 sequence_number = 4;
     bool is_final = 5;
 }
+
+
+// Serviço C - Método Client-streaming
+service ServicoC {
+    // Método client-streaming que recebe múltiplas requisições e retorna uma resposta
+    rpc RealizarTarefaC(stream RequestC) returns (ResponseC) {}
+}
+
+// Serviço D - Método Bidirectional-streaming
+service ServicoD {
+    // Método bidirectional-streaming que recebe e envia múltiplas mensagens
+    rpc RealizarTarefaD(stream RequestD) returns (stream ResponseD) {}
+}
+
+// Mensagens para o Serviço C
+message RequestC {
+    string id = 1;
+    string data = 2;
+    int32 part = 3;
+}
+
+message ResponseC {
+    string id = 1;
+    string summary = 2;
+    int32 total_parts = 3;
+    string message = 4;
+}
+
+// Mensagens para o Serviço D
+message RequestD {
+    string id = 1;
+    string data = 2;
+    int32 sequence = 3;
+}
+
+message ResponseD {
+    string id = 1;
+    string result = 2;
+    int32 sequence = 3;
+    string message = 4;
+}
