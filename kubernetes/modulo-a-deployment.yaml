@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: modulo-a-deployment
+  namespace: projeto-distribuido
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: modulo-a
+  template:
+    metadata:
+      labels:
+        app: modulo-a
+    spec:
+      containers:
+      - name: modulo-a-container
+        image: modulo-a-grpc:latest  # Use o nome da sua imagem Docker
+        ports:
+        - containerPort: 50051
+        imagePullPolicy: IfNotPresent # Importante para usar imagens locais com Minikube

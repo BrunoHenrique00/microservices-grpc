@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: modulo-p-deployment
+  namespace: projeto-distribuido
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: modulo-p
+  template:
+    metadata:
+      labels:
+        app: modulo-p
+    spec:
+      containers:
+      - name: modulo-p-container
+        image: modulo-p-gateway:latest
+        ports:
+        - containerPort: 8000
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: MODULO_A_HOST
+            value: "modulo-a-service" # Usa o nome do Service do K8s
+          - name: MODULO_B_HOST
+            value: "modulo-b-service" # Usa o nome do Service do K8s
