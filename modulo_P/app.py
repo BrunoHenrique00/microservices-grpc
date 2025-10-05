@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 import sys
 import os
+import requests
 
 # Adiciona o diretório dos protobuf ao path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'protos'))
@@ -41,101 +42,122 @@ class ExecutarResponse(BaseModel):
     status: str
     message: str
 
-class GRPCClient:
-    """Cliente gRPC para comunicação com os módulos A e B"""
-    
-    def __init__(self):
-        # Configuração dos canais gRPC usando variáveis de ambiente
-        modulo_a_host = os.getenv('MODULO_A_HOST', 'localhost')
-        modulo_a_port = os.getenv('MODULO_A_PORT', '50051')
-        modulo_b_host = os.getenv('MODULO_B_HOST', 'localhost') 
-        modulo_b_port = os.getenv('MODULO_B_PORT', '50052')
-        
-        self.channel_a = grpc.insecure_channel(f'{modulo_a_host}:{modulo_a_port}')
-        self.channel_b = grpc.insecure_channel(f'{modulo_b_host}:{modulo_b_port}')
-        
-        # Criação dos stubs
-        self.stub_a = servico_pb2_grpc.ServicoAStub(self.channel_a)
-        self.stub_b = servico_pb2_grpc.ServicoBStub(self.channel_b)
-    
-    def close_connections(self):
-        """Fecha as conexões gRPC"""
-        self.channel_a.close()
-        self.channel_b.close()
-    
-    def chamar_servico_a(self, request_data: ExecutarRequest) -> Dict[str, Any]:
-        """
-        Chama o serviço A (método unary)
-        """
-        try:
-            # Prepara a requisição para o serviço A
-            request_a = servico_pb2.RequestA(
-                id=request_data.id,
-                data=request_data.data,
-                operation=request_data.operation
-            )
-            
-            # Faz a chamada gRPC unary
-            response_a = self.stub_a.RealizarTarefaA(request_a, timeout=10)
-            
-            return {
-                "id": response_a.id,
-                "result": response_a.result,
-                "message": response_a.message,
-                "status_code": response_a.status_code
-            }
-        
-        except grpc.RpcError as e:
-            raise HTTPException(
-                status_code=503, 
-                detail=f"Erro na comunicação com Módulo A: {e.details()}"
-            )
-    
-    def chamar_servico_b(self, request_data: ExecutarRequest, resultado_a: str) -> List[Dict[str, Any]]:
-        """
-        Chama o serviço B (método server-streaming)
-        """
-        try:
-            # Prepara a requisição para o serviço B, usando o resultado de A
-            request_b = servico_pb2.RequestB(
-                id=request_data.id,
-                data=f"{request_data.data}_processado_por_A:{resultado_a}",
-                count=request_data.count
-            )
-            
-            # Faz a chamada gRPC server-streaming
-            responses_b = []
-            for response_b in self.stub_b.RealizarTarefaB(request_b, timeout=30):
-                responses_b.append({
-                    "id": response_b.id,
-                    "result": response_b.result,
-                    "message": response_b.message,
-                    "sequence_number": response_b.sequence_number,
-                    "is_final": response_b.is_final
-                })
-            
-            return responses_b
-        
-        except grpc.RpcError as e:
-            raise HTTPException(
-                status_code=503, 
-                detail=f"Erro na comunicação com Módulo B: {e.details()}"
-            )
+class ServiceClient:
+    """Cliente para comunicação com os módulos A e B via gRPC ou REST"""
+    def __init__(self, modo='grpc'):
+        self.modo = modo
+        # Configuração dos hosts/ports
+        self.modulo_a_host = os.getenv('MODULO_A_HOST', 'localhost')
+        self.modulo_a_port_grpc = os.getenv('MODULO_A_PORT', '50051')
+        self.modulo_a_port_rest = os.getenv('MODULO_A_PORT_REST', '5001')
+        self.modulo_b_host = os.getenv('MODULO_B_HOST', 'localhost')
+        self.modulo_b_port_grpc = os.getenv('MODULO_B_PORT', '50052')
+        self.modulo_b_port_rest = os.getenv('MODULO_B_PORT_REST', '5002')
 
-# Instância global do cliente gRPC
-grpc_client = GRPCClient()
+        if self.modo == 'grpc':
+            self.channel_a = grpc.insecure_channel(f'{self.modulo_a_host}:{self.modulo_a_port_grpc}')
+            self.channel_b = grpc.insecure_channel(f'{self.modulo_b_host}:{self.modulo_b_port_grpc}')
+            self.stub_a = servico_pb2_grpc.ServicoAStub(self.channel_a)
+            self.stub_b = servico_pb2_grpc.ServicoBStub(self.channel_b)
+
+    def close_connections(self):
+        if self.modo == 'grpc':
+            self.channel_a.close()
+            self.channel_b.close()
+
+    def chamar_servico_a(self, request_data: ExecutarRequest) -> Dict[str, Any]:
+        if self.modo == 'grpc':
+            try:
+                request_a = servico_pb2.RequestA(
+                    id=request_data.id,
+                    data=request_data.data,
+                    operation=request_data.operation
+                )
+                response_a = self.stub_a.RealizarTarefaA(request_a, timeout=10)
+                return {
+                    "id": response_a.id,
+                    "result": response_a.result,
+                    "message": response_a.message,
+                    "status_code": response_a.status_code
+                }
+            except grpc.RpcError as e:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Erro na comunicação com Módulo A (gRPC): {e.details()}"
+                )
+        else:
+            # REST/JSON
+            try:
+                url = f"http://{self.modulo_a_host}:{self.modulo_a_port_rest}/realizar-tarefa-a"
+                payload = {
+                    "id": request_data.id,
+                    "data": request_data.data,
+                    "operation": request_data.operation
+                }
+                resp = requests.post(url, json=payload, timeout=10)
+                resp.raise_for_status()
+                return resp.json()
+            except Exception as e:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Erro na comunicação com Módulo A (REST): {str(e)}"
+                )
+
+    def chamar_servico_b(self, request_data: ExecutarRequest, resultado_a: str) -> List[Dict[str, Any]]:
+        if self.modo == 'grpc':
+            try:
+                request_b = servico_pb2.RequestB(
+                    id=request_data.id,
+                    data=f"{request_data.data}_processado_por_A:{resultado_a}",
+                    count=request_data.count
+                )
+                responses_b = []
+                for response_b in self.stub_b.RealizarTarefaB(request_b, timeout=30):
+                    responses_b.append({
+                        "id": response_b.id,
+                        "result": response_b.result,
+                        "message": response_b.message,
+                        "sequence_number": response_b.sequence_number,
+                        "is_final": response_b.is_final
+                    })
+                return responses_b
+            except grpc.RpcError as e:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Erro na comunicação com Módulo B (gRPC): {e.details()}"
+                )
+        else:
+            # REST/JSON
+            try:
+                url = f"http://{self.modulo_b_host}:{self.modulo_b_port_rest}/realizar-tarefa-b"
+                payload = {
+                    "id": request_data.id,
+                    "data": f"{request_data.data}_processado_por_A:{resultado_a}",
+                    "count": request_data.count
+                }
+                resp = requests.post(url, json=payload, timeout=15)
+                resp.raise_for_status()
+                data = resp.json()
+                return data.get("respostas", [])
+            except Exception as e:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Erro na comunicação com Módulo B (REST): {str(e)}"
+                )
+
+
+# Instância global do cliente (padrão: gRPC)
+service_client = ServiceClient(modo=os.getenv('MODOP_COMUNICACAO', 'grpc'))
 
 @app.on_event("startup")
 async def startup_event():
-    """Evento executado na inicialização do servidor"""
     print("🚀 Módulo P (Gateway) iniciado!")
-    print("📡 Conectando aos módulos A (porta 50051) e B (porta 50052)")
+    print(f"📡 Modo de comunicação: {service_client.modo.upper()}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Evento executado no encerramento do servidor"""
-    print("🔌 Fechando conexões gRPC...")
-    grpc_client.close_connections()
+    print("🔌 Fechando conexões...")
+    service_client.close_connections()
 
 @app.get("/")
 async def root():
@@ -150,25 +172,14 @@ async def root():
 async def executar_tarefa(request: ExecutarRequest):
     """
     Endpoint principal que orquestra as chamadas para os módulos A e B
-    
-    Fluxo:
-    1. Recebe requisição HTTP do cliente web
-    2. Chama o serviço A (unary)
-    3. Usa a resposta de A para chamar o serviço B (server-streaming)
-    4. Consolida e retorna as respostas
+    Agora suporta comunicação via gRPC ou REST/JSON (definido por variável de ambiente MODOP_COMUNICACAO)
     """
     print(f"📨 Recebida requisição: {request.id}")
-    
     try:
-        # Passo 1: Chamar o Módulo A
         print(f"🔄 Chamando Módulo A para ID: {request.id}")
-        resultado_a = grpc_client.chamar_servico_a(request)
-        
-        # Passo 2: Chamar o Módulo B usando resultado de A
+        resultado_a = service_client.chamar_servico_a(request)
         print(f"🔄 Chamando Módulo B para ID: {request.id}")
-        resultados_b = grpc_client.chamar_servico_b(request, resultado_a["result"])
-        
-        # Passo 3: Consolidar respostas
+        resultados_b = service_client.chamar_servico_b(request, resultado_a.get("resultado", resultado_a.get("result", "")))
         response = ExecutarResponse(
             request_id=request.id,
             resultado_a=resultado_a,
@@ -177,10 +188,8 @@ async def executar_tarefa(request: ExecutarRequest):
             message=f"Tarefa {request.id} executada com sucesso. "
                    f"Módulo A processou, Módulo B retornou {len(resultados_b)} respostas."
         )
-        
         print(f"✅ Tarefa {request.id} concluída com sucesso")
         return response
-    
     except Exception as e:
         print(f"❌ Erro na execução da tarefa {request.id}: {str(e)}")
         raise HTTPException(

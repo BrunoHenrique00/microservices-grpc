@@ -47,16 +47,19 @@ projeto_distribuido/
 ### Opção 1: Usando Docker Compose (Recomendado)
 
 1. **Clone e navegue para o diretório do projeto:**
+
 ```bash
 cd projeto_distribuido
 ```
 
 2. **Inicie todos os serviços:**
+
 ```bash
 docker-compose up --build
 ```
 
 3. **Aguarde todos os serviços ficarem prontos.** Você verá logs similares a:
+
 ```
 modulo-a-grpc  | 🚀 Módulo A - Servidor gRPC iniciado!
 modulo-b-grpc  | 🚀 Módulo B - Servidor gRPC iniciado!
@@ -103,6 +106,7 @@ npm start
 **Endpoint Principal**: `POST http://localhost:8000/api/executar`
 
 **Payload de exemplo**:
+
 ```json
 {
   "id": "tarefa-001",
@@ -113,6 +117,7 @@ npm start
 ```
 
 **Exemplo com curl**:
+
 ```bash
 curl -X POST "http://localhost:8000/api/executar" \
      -H "Content-Type: application/json" \
@@ -163,6 +168,66 @@ curl -X POST "http://localhost:8000/api/executar" \
 }
 ```
 
+## Testando os Endpoints REST dos Módulos A e B
+
+Você pode testar os microsserviços REST/JSON (modulo_A e modulo_B) diretamente usando `curl` ou Postman.
+
+### Módulo A (REST)
+
+Inicie o servidor REST do módulo A:
+
+```bash
+cd modulo_A
+npm install express
+node server_rest.js
+```
+
+Teste o endpoint:
+
+```bash
+curl -X POST http://localhost:5001/realizar-tarefa-a \
+  -H "Content-Type: application/json" \
+  -d '{"id":1,"data":"exemplo","operation":"upper"}'
+```
+
+Resposta esperada:
+
+```json
+{ "id": 1, "resultado": "EXEMPLO", "status": "ok" }
+```
+
+### Módulo B (REST)
+
+Inicie o servidor REST do módulo B:
+
+```bash
+cd modulo_B
+npm install express
+node server_rest.js
+```
+
+Teste o endpoint:
+
+```bash
+curl -X POST http://localhost:5002/realizar-tarefa-b \
+  -H "Content-Type: application/json" \
+  -d '{"id":2,"data":"exemplo","count":3}'
+```
+
+Resposta esperada:
+
+```json
+{
+  "id": 2,
+  "respostas": [
+    { "id": 2, "resultado": "exemplo-resp1", "ordem": 1, "status": "ok" },
+    { "id": 2, "resultado": "exemplo-resp2", "ordem": 2, "status": "ok" },
+    { "id": 2, "resultado": "exemplo-resp3", "ordem": 3, "status": "ok" }
+  ],
+  "total": 3
+}
+```
+
 ## Fluxo de Execução
 
 1. **Cliente Web** faz requisição HTTP POST para `/api/executar`
@@ -174,10 +239,59 @@ curl -X POST "http://localhost:8000/api/executar" \
 ## Operações Disponíveis (Módulo A)
 
 - `uppercase`: Converte para maiúsculas
-- `lowercase`: Converte para minúsculas  
+- `lowercase`: Converte para minúsculas
 - `reverse`: Inverte a string
 - `length`: Retorna o comprimento
 - `default`: Processamento padrão
+
+## Teste de Performance: Comparativo gRPC vs REST/JSON
+
+O script `documentacao/teste_performance.py` permite comparar o tempo de resposta do endpoint principal do Módulo P, tanto usando gRPC quanto REST/JSON.
+
+### Para que serve?
+
+Esse script faz múltiplas requisições POST para o endpoint `/api/executar` do Módulo P e mede o tempo de resposta médio, mínimo e máximo. Você pode alternar o modo de comunicação do Módulo P (gRPC ou REST) e comparar os resultados para cada abordagem.
+
+### Como usar
+
+1. **Crie e ative um ambiente virtual Python:**
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+2. **Instale a dependência necessária:**
+
+```bash
+pip install requests
+```
+
+3. **Execute o script de teste:**
+
+```bash
+python documentacao/teste_performance.py
+```
+
+4. **Altere o modo de comunicação do Módulo P:**
+
+- Para testar gRPC, mantenha `MODOP_COMUNICACAO=grpc` (padrão)
+- Para testar REST, defina `MODOP_COMUNICACAO=rest` antes de iniciar o Módulo P:
+  ```bash
+  export MODOP_COMUNICACAO=rest
+  python app.py
+  ```
+
+5. **Compare os resultados exibidos pelo script** (tempo médio, menor e maior tempo).
+
+### Exemplo de saída
+
+```
+Testando 10 requisições para http://localhost:8000/api/executar
+Tempo médio: 3.0348 segundos
+Menor tempo: 3.0304 s | Maior tempo: 3.0500 s
+Altere o modo de comunicação do Módulo P (gRPC/REST) e repita o teste.
+```
 
 ## Monitoramento
 
@@ -209,13 +323,14 @@ docker-compose ps
 Quando modificar `protos/servico.proto`:
 
 1. **Para o Módulo P**:
+
 ```bash
 cd modulo_P
 python generate_protos.py
 ```
 
-2. **Para os Módulos A e B**: 
-Os stubs são carregados dinamicamente, não é necessário regenerar.
+2. **Para os Módulos A e B**:
+   Os stubs são carregados dinamicamente, não é necessário regenerar.
 
 ### Debugging
 
