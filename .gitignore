@@ -13,6 +13,7 @@ pids
 node_modules/
 modulo_A/node_modules/
 modulo_B/node_modules/
+frontend/node_modules/
 .npm
 .eslintcache
 *.tgz

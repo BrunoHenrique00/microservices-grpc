@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teste Microservices gRPC</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        color: #2c3e50;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      h1 {
+        text-align: center;
+        color: #34495e;
+        margin-bottom: 10px;
+        font-size: 2.5rem;
+        font-weight: 300;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .subtitle {
+        text-align: center;
+        color: #7f8c8d;
+        margin-bottom: 40px;
+        font-size: 1.1rem;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #3498db;
+      }
+
+      .panel {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 30px;
+        margin: 25px 0;
+        border-radius: 12px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+      }
+
+      .panel:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+      }
+
+      .btn {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #34495e, #2c3e50);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        margin: 8px 5px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(52, 73, 94, 0.3);
+      }
+
+      .btn:hover {
+        background: linear-gradient(135deg, #2c3e50, #34495e);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(52, 73, 94, 0.4);
+      }
+
+      .btn:active {
+        transform: translateY(0);
+      }
+
+      .form-group {
+        margin: 15px 0;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+        color: #34495e;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .form-group input,
+      .form-group select {
+        width: 100%;
+        max-width: 300px;
+        padding: 12px 15px;
+        border: 2px solid #ecf0f1;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        background: rgba(255, 255, 255, 0.9);
+        transition: all 0.3s ease;
+      }
+
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: #3498db;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+      }
+
+      .result {
+        margin: 25px 0;
+        padding: 20px;
+        border-radius: 8px;
+        border-left: 4px solid #3498db;
+        transition: all 0.3s ease;
+      }
+
+      .result.success {
+        background: linear-gradient(135deg, #d5f4e6, #f0f9ff);
+        border-left-color: #27ae60;
+        color: #1e7e34;
+      }
+
+      .result.error {
+        background: linear-gradient(135deg, #ffeaea, #fff5f5);
+        border-left-color: #e74c3c;
+        color: #721c24;
+      }
+
+      pre {
+        background: #2c3e50;
+        color: #ecf0f1;
+        padding: 20px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-family: "Consolas", "Monaco", monospace;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 25px;
+        margin-top: 30px;
+      }
+
+      h2 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+        font-size: 1.4rem;
+        font-weight: 500;
+        border-bottom: 2px solid #ecf0f1;
+        padding-bottom: 10px;
+      }
+
+      .test-description {
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        color: #6c757d;
+        font-size: 0.9rem;
+        border-left: 3px solid #3498db;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 15px;
+        }
+
+        h1 {
+          font-size: 2rem;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .form-row {
+          grid-template-columns: 1fr;
+        }
+
+        .panel {
+          padding: 20px;
+        }
+      }
+
+      /* Loading animation */
+      .loading {
+        opacity: 0.7;
+        pointer-events: none;
+      }
+
+      .loading .btn {
+        background: #95a5a6 !important;
+      }
+
+      /* Smooth transitions for results */
+      .result {
+        animation: slideIn 0.3s ease;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🚀 Microservices gRPC Test Dashboard</h1>
+
+      <div class="subtitle">
+        <strong>Instruções:</strong> Certifique-se de que o backend está rodando
+        com <code>docker-compose up -d</code> no diretório raiz do projeto
+      </div>
+
+      <!-- Testes -->
+      <div class="grid">
+        <!-- Teste Principal -->
+        <div class="panel">
+          <h2>🔄 Teste Principal (Fluxo Completo)</h2>
+          <div class="test-description">
+            Testa o fluxo completo: Gateway → Módulo A (gRPC) → Módulo B (gRPC
+            streaming)
+          </div>
+          <form onsubmit="testMain(event)">
+            <div class="form-row">
+              <div class="form-group">
+                <label>ID da Tarefa:</label>
+                <input type="text" id="main-id" value="tarefa-001" required />
+              </div>
+              <div class="form-group">
+                <label>Dados de Entrada:</label>
+                <input
+                  type="text"
+                  id="main-data"
+                  value="hello_world"
+                  required
+                />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Operação (Módulo A):</label>
+                <select id="main-operation">
+                  <option value="uppercase">Converter para Maiúsculas</option>
+                  <option value="lowercase">Converter para Minúsculas</option>
+                  <option value="reverse">Inverter String</option>
+                  <option value="length">Obter Comprimento</option>
+                  <option value="default">Processamento Padrão</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Qtd. Respostas (Módulo B):</label>
+                <input
+                  type="number"
+                  id="main-count"
+                  value="3"
+                  min="1"
+                  max="10"
+                />
+              </div>
+            </div>
+            <button type="submit" class="btn">Executar Teste Completo</button>
+          </form>
+          <div id="main-result"></div>
+        </div>
+
+        <!-- Teste Módulo A -->
+        <div class="panel">
+          <h2>🎯 Teste Módulo A (REST)</h2>
+          <div class="test-description">
+            Testa diretamente o endpoint REST do Módulo A (porta 5001) -
+            processamento unary
+          </div>
+          <form onsubmit="testModuleA(event)">
+            <div class="form-row">
+              <div class="form-group">
+                <label>ID:</label>
+                <input type="number" id="a-id" value="1" required />
+              </div>
+              <div class="form-group">
+                <label>Dados:</label>
+                <input type="text" id="a-data" value="exemplo" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Operação:</label>
+              <select id="a-operation">
+                <option value="upper">Maiúsculas</option>
+                <option value="lower">Minúsculas</option>
+                <option value="reverse">Inverter</option>
+              </select>
+            </div>
+            <button type="submit" class="btn">Testar Módulo A</button>
+          </form>
+          <div id="a-result"></div>
+        </div>
+
+        <!-- Teste Módulo B -->
+        <div class="panel">
+          <h2>📡 Teste Módulo B (REST)</h2>
+          <div class="test-description">
+            Testa diretamente o endpoint REST do Módulo B (porta 5002) - simula
+            server streaming
+          </div>
+          <form onsubmit="testModuleB(event)">
+            <div class="form-row">
+              <div class="form-group">
+                <label>ID:</label>
+                <input type="number" id="b-id" value="2" required />
+              </div>
+              <div class="form-group">
+                <label>Dados:</label>
+                <input type="text" id="b-data" value="exemplo" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Número de Respostas (streaming):</label>
+              <input type="number" id="b-count" value="3" min="1" max="10" />
+            </div>
+            <button type="submit" class="btn">Testar Módulo B</button>
+          </form>
+          <div id="b-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function setLoading(formElement, isLoading) {
+        const form = formElement.closest(".panel");
+        if (isLoading) {
+          form.classList.add("loading");
+        } else {
+          form.classList.remove("loading");
+        }
+      }
+
+      async function testMain(event) {
+        event.preventDefault();
+        setLoading(event.target, true);
+
+        const data = {
+          id: document.getElementById("main-id").value,
+          data: document.getElementById("main-data").value,
+          operation: document.getElementById("main-operation").value,
+          count: parseInt(document.getElementById("main-count").value),
+        };
+
+        try {
+          const response = await fetch("/api/test/executar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          const result = await response.json();
+          document.getElementById(
+            "main-result"
+          ).innerHTML = `<div class="result ${
+            result.success ? "success" : "error"
+          }">
+                        <strong>${
+                          result.success ? "✅ Sucesso" : "❌ Erro"
+                        }</strong>
+                        <pre>${JSON.stringify(
+                          result.data || result.error,
+                          null,
+                          2
+                        )}</pre>
+                    </div>`;
+        } catch (error) {
+          document.getElementById(
+            "main-result"
+          ).innerHTML = `<div class="result error"><strong>❌ Erro de Conexão</strong><br>${error.message}</div>`;
+        } finally {
+          setLoading(event.target, false);
+        }
+      }
+
+      async function testModuleA(event) {
+        event.preventDefault();
+        setLoading(event.target, true);
+
+        const data = {
+          id: parseInt(document.getElementById("a-id").value),
+          data: document.getElementById("a-data").value,
+          operation: document.getElementById("a-operation").value,
+        };
+
+        try {
+          const response = await fetch("/api/test/modulo-a", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          const result = await response.json();
+          document.getElementById("a-result").innerHTML = `<div class="result ${
+            result.success ? "success" : "error"
+          }">
+                        <strong>${
+                          result.success
+                            ? "✅ Módulo A Respondeu"
+                            : "❌ Erro no Módulo A"
+                        }</strong>
+                        <pre>${JSON.stringify(
+                          result.data || result.error,
+                          null,
+                          2
+                        )}</pre>
+                    </div>`;
+        } catch (error) {
+          document.getElementById(
+            "a-result"
+          ).innerHTML = `<div class="result error"><strong>❌ Erro de Conexão</strong><br>${error.message}</div>`;
+        } finally {
+          setLoading(event.target, false);
+        }
+      }
+
+      async function testModuleB(event) {
+        event.preventDefault();
+        setLoading(event.target, true);
+
+        const data = {
+          id: parseInt(document.getElementById("b-id").value),
+          data: document.getElementById("b-data").value,
+          count: parseInt(document.getElementById("b-count").value),
+        };
+
+        try {
+          const response = await fetch("/api/test/modulo-b", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          const result = await response.json();
+          document.getElementById("b-result").innerHTML = `<div class="result ${
+            result.success ? "success" : "error"
+          }">
+                        <strong>${
+                          result.success
+                            ? "✅ Módulo B Respondeu"
+                            : "❌ Erro no Módulo B"
+                        }</strong>
+                        <pre>${JSON.stringify(
+                          result.data || result.error,
+                          null,
+                          2
+                        )}</pre>
+                    </div>`;
+        } catch (error) {
+          document.getElementById(
+            "b-result"
+          ).innerHTML = `<div class="result error"><strong>❌ Erro de Conexão</strong><br>${error.message}</div>`;
+        } finally {
+          setLoading(event.target, false);
+        }
+      }
+    </script>
+  </body>
+</html>

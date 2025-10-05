@@ -358,3 +358,37 @@ docker-compose down -v
 # Forçar reconstrução na próxima execução
 docker-compose down --rmi all
 ```
+
+## 🌐 Frontend para Testes
+
+Foi criado um frontend simples para facilitar os testes sem usar o terminal.
+
+### Como Usar o Frontend
+
+1. **Certifique-se de que o backend está rodando:**
+
+```bash
+docker-compose up -d
+```
+
+2. **Inicie o frontend:**
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+3. **Acesse no navegador:**
+
+```
+http://localhost:3000
+```
+
+### Funcionalidades do Frontend
+
+- ✅ **Teste Principal**: Testa o fluxo completo (Gateway → Módulo A → Módulo B)
+- ✅ **Teste Módulo A**: Testa diretamente o endpoint REST do Módulo A
+- ✅ **Teste Módulo B**: Testa diretamente o endpoint REST do Módulo B
+- ✅ **Interface Simples**: Formulários intuitivos para todos os testes
+- ✅ **Auto-start**: Módulos REST iniciam automaticamente
