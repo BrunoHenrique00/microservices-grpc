@@ -7,6 +7,7 @@ services:
     container_name: modulo-a-grpc
     ports:
       - "50051:50051"
+      - "5001:5001"
     networks:
       - grpc-network
     healthcheck:
@@ -24,6 +25,7 @@ services:
     container_name: modulo-b-grpc
     ports:
       - "50052:50052"
+      - "5002:5002"
     networks:
       - grpc-network
     healthcheck:
@@ -56,6 +58,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
+
+  # Frontend (Node.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend-app
+    ports:
+      - "3000:3000"
+    networks:
+      - grpc-network
+    depends_on:
+      - modulo-p
     restart: unless-stopped
 
 networks:

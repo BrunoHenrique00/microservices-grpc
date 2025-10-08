@@ -42,56 +42,48 @@ projeto_distribuido/
 - **Python 3.11+** (para desenvolvimento local)
 - **Node.js 18+** (para desenvolvimento local)
 
-## Configuração e Execução
+## Como rodar o sistema (tudo via Docker Compose)
 
-### Opção 1: Usando Docker Compose (Recomendado)
-
-1. **Clone e navegue para o diretório do projeto:**
-
-```bash
-cd projeto_distribuido
-```
-
-2. **Inicie todos os serviços:**
+1. Certifique-se de ter Docker e Docker Compose instalados.
+2. No diretório raiz do projeto, execute:
 
 ```bash
-docker-compose up --build
+docker compose up --build -d
 ```
 
-3. **Aguarde todos os serviços ficarem prontos.** Você verá logs similares a:
+3. Acesse o frontend em [http://localhost:3000](http://localhost:3000)
+4. O gateway (Módulo P) estará disponível em [http://localhost:8000](http://localhost:8000)
 
-```
-modulo-a-grpc  | 🚀 Módulo A - Servidor gRPC iniciado!
-modulo-b-grpc  | 🚀 Módulo B - Servidor gRPC iniciado!
-modulo-p-gateway | 🚀 Módulo P (Gateway) iniciado!
-```
-
-### Opção 2: Execução Local (Desenvolvimento)
-
-#### 1. Preparar Módulo P (Gateway)
+5. Para ver logs em tempo real:
 
 ```bash
-cd modulo_P
-pip install -r requirements.txt
-python generate_protos.py
-python app.py
+docker compose logs -f
 ```
 
-#### 2. Preparar Módulo A
+6. Para parar tudo:
 
 ```bash
-cd modulo_A
-npm install
-npm start
+docker compose down
 ```
 
-#### 3. Preparar Módulo B
+---
+
+## Como alternar entre gRPC e REST/JSON
+
+Para alternar entre gRPC e REST/JSON, edite o serviço `modulo-p` no `docker-compose.yml`:
+
+```yaml
+environment:
+  - MODOP_COMUNICACAO=rest # ou 'grpc' (padrão)
+```
+
+Depois, reinicie os containers:
 
 ```bash
-cd modulo_B
-npm install
-npm start
+docker compose up --build -d
 ```
+
+---
 
 ## Como Usar
 
@@ -361,34 +353,21 @@ docker-compose down --rmi all
 
 ## 🌐 Frontend para Testes
 
-Foi criado um frontend simples para facilitar os testes sem usar o terminal.
-
-### Como Usar o Frontend
-
-1. **Certifique-se de que o backend está rodando:**
+O frontend já está incluso no Docker Compose. Basta rodar:
 
 ```bash
-docker-compose up -d
+docker compose up --build -d
 ```
 
-2. **Inicie o frontend:**
-
-```bash
-cd frontend
-npm install
-npm start
-```
-
-3. **Acesse no navegador:**
+E acessar no navegador:
 
 ```
 http://localhost:3000
 ```
 
-### Funcionalidades do Frontend
+Funcionalidades do Frontend:
 
-- ✅ **Teste Principal**: Testa o fluxo completo (Gateway → Módulo A → Módulo B)
-- ✅ **Teste Módulo A**: Testa diretamente o endpoint REST do Módulo A
-- ✅ **Teste Módulo B**: Testa diretamente o endpoint REST do Módulo B
-- ✅ **Interface Simples**: Formulários intuitivos para todos os testes
-- ✅ **Auto-start**: Módulos REST iniciam automaticamente
+- ✅ Teste Principal: fluxo completo (Gateway → Módulo A → Módulo B)
+- ✅ Teste Módulo A: endpoint REST do Módulo A
+- ✅ Teste Módulo B: endpoint REST do Módulo B
+- ✅ Interface simples e intuitiva

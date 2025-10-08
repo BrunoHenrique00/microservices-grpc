@@ -27,8 +27,10 @@ RUN addgroup -g 1001 -S nodejs && \
 RUN chown -R grpcuser:nodejs /app
 USER grpcuser
 
-# Expõe a porta do serviço gRPC
-EXPOSE 50051
 
-# Comando para iniciar o servidor
-CMD ["node", "server.js"]
+# Expõe as portas do serviço gRPC e REST
+EXPOSE 50051
+EXPOSE 5001
+
+# Comando para iniciar os servidores gRPC e REST
+CMD ["sh", "-c", "node server.js & node server_rest.js"]
