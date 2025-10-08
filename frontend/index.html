@@ -17,6 +17,110 @@
 
       <!-- Testes -->
       <div class="grid">
+        <!-- Comparação gRPC x REST -->
+        <div class="panel">
+          <h2>Comparação gRPC x REST (Módulo A)</h2>
+          <div class="test-description">
+            <b>Comparação automática de desempenho:</b> O sistema envia
+            <b>5 requisições</b> para o gateway (gRPC) e para o endpoint REST do
+            Módulo A, calcula a média dos tempos de resposta e mostra a
+            diferença.<br />
+            <ul style="margin-top: 10px">
+              <li><b>gRPC (Gateway):</b> via FastAPI → gRPC → Node.js</li>
+              <li><b>REST (Módulo A):</b> direto no Node.js</li>
+            </ul>
+            <span style="color: #888; font-size: 0.95em"
+              >(Quanto menor o tempo, mais rápido a resposta)</span
+            >
+          </div>
+          <form onsubmit="testComparar(event)">
+            <div class="form-row">
+              <div class="form-group">
+                <label>ID da Tarefa:</label>
+                <input type="text" id="cmp-id" value="tarefa-001" required />
+              </div>
+              <div class="form-group">
+                <label>Dados de Entrada:</label>
+                <input type="text" id="cmp-data" value="hello_world" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Operação:</label>
+                <select id="cmp-operation">
+                  <option value="upper">Maiúsculas</option>
+                  <option value="lower">Minúsculas</option>
+                  <option value="reverse">Inverter</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="btn">Comparar gRPC x REST</button>
+          </form>
+          <div id="cmp-result"></div>
+        </div>
+        <script>
+          function setLoading(formElement, isLoading) {
+            const form = formElement.closest(".panel");
+            if (isLoading) {
+              form.classList.add("loading");
+            } else {
+              form.classList.remove("loading");
+            }
+          }
+
+          async function testComparar(event) {
+            event.preventDefault();
+            const id = document.getElementById("cmp-id").value;
+            const data = document.getElementById("cmp-data").value;
+            const operation = document.getElementById("cmp-operation").value;
+            document.getElementById("cmp-result").innerHTML =
+              "<div class='result'>Testando...</div>";
+            try {
+              const response = await fetch("/api/test/comparar", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, data, operation }),
+              });
+              const result = await response.json();
+              let html = `<div class='result success'>`;
+              html += `<strong>gRPC (Gateway):</strong> <br>Média: <b>${
+                result.grpc.avg ?? "-"
+              } ms</b> em ${result.n} reqs<br>`;
+              html += result.grpc.error
+                ? `<span style='color:red'>Erro: ${result.grpc.error}</span><br>`
+                : `<pre>${JSON.stringify(result.grpc.result, null, 2)}</pre>`;
+              html += `<small>Tempos individuais: ${result.grpc.times
+                .map((t) => (t === null ? "-" : t + "ms"))
+                .join(", ")}</small>`;
+              html += `<hr><strong>REST (Módulo A):</strong> <br>Média: <b>${
+                result.rest.avg ?? "-"
+              } ms</b> em ${result.n} reqs<br>`;
+              html += result.rest.error
+                ? `<span style='color:red'>Erro: ${result.rest.error}</span><br>`
+                : `<pre>${JSON.stringify(result.rest.result, null, 2)}</pre>`;
+              html += `<small>Tempos individuais: ${result.rest.times
+                .map((t) => (t === null ? "-" : t + "ms"))
+                .join(", ")}</small>`;
+              if (result.grpc.avg !== null && result.rest.avg !== null) {
+                html += `<hr><b>Diferença média (gRPC - REST): ${result.diff} ms</b> `;
+                if (result.diff > 0)
+                  html +=
+                    '<span style="color:#e67e22">(REST mais rápido)</span>';
+                else if (result.diff < 0)
+                  html +=
+                    '<span style="color:#27ae60">(gRPC mais rápido)</span>';
+                else html += "(Empate)";
+              }
+              html += `</div>`;
+              document.getElementById("cmp-result").innerHTML = html;
+            } catch (error) {
+              document.getElementById(
+                "cmp-result"
+              ).innerHTML = `<div class='result error'>Erro: ${error.message}</div>`;
+            }
+          }
+          // ...existing code for testMain, testModuleA, testModuleB...
+        </script>
         <!-- Teste Principal -->
         <div class="panel">
           <h2>Teste Principal (Fluxo Completo)</h2>
