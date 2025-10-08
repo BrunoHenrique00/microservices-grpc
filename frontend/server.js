@@ -8,8 +8,35 @@ const PORT = 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-// Servir arquivos estáticos (CSS, imagens, etc)
-app.use(express.static(__dirname));
+
+// Servidores REST dos módulos A e B
+let restServerA = null;
+let restServerB = null;
+
+const GATEWAY_URL = process.env.GATEWAY_URL || "http://localhost:8000";
+
+// Função para iniciar servidores REST
+function startRestServers() {
+  const projectDir = path.join(__dirname, "..");
+
+  // Módulo A REST (porta 5001)
+  if (!restServerA) {
+    restServerA = spawn("node", ["server_rest.js"], {
+      cwd: path.join(projectDir, "modulo_A"),
+      env: { ...process.env, PORT: "5001" },
+    });
+    console.log("🟢 Módulo A REST rodando na porta 5001");
+  }
+
+  // Módulo B REST (porta 5002)
+  if (!restServerB) {
+    restServerB = spawn("node", ["server_rest.js"], {
+      cwd: path.join(projectDir, "modulo_B"),
+      env: { ...process.env, PORT: "5002" },
+    });
+    console.log("🟢 Módulo B REST rodando na porta 5002");
+  }
+}
 
 // Página principal
 app.get("/", (req, res) => {
@@ -20,7 +47,7 @@ app.get("/", (req, res) => {
 app.post("/api/test/executar", async (req, res) => {
   try {
     const response = await axios.post(
-      "http://modulo-p:8000/api/executar",
+      `${GATEWAY_URL}/api/executar`,
       req.body
     );
     res.json({ success: true, data: response.data });

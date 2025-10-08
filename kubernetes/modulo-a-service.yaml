@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: modulo-a-service
+  namespace: projeto-distribuido
+spec:
+  selector:
+    app: modulo-a
+  ports:
+    - protocol: TCP
+      port: 50051
+      targetPort: 50051
+  type: ClusterIP # Exposto apenas dentro do cluster
