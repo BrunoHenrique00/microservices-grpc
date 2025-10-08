@@ -402,7 +402,7 @@ Esta seção detalha como implantar a aplicação em um cluster Kubernetes local
 
 O deploy no Kubernetes é definido de forma declarativa através dos arquivos de manifesto (`.yaml`) localizados na pasta `kubernetes/`.
 
-- `namespace.yaml`: Cria um espaço de trabalho isolado chamado `projeto-distribuido` para organizar todos os recursos da nossa aplicação.
+- `01-namespace.yaml`: Cria um espaço de trabalho isolado chamado `projeto-distribuido` para organizar todos os recursos da nossa aplicação.
 - `modulo-a-deployment.yaml`: Define o estado desejado para o Módulo A, especificando a imagem Docker a ser usada e o número de réplicas.
 - `modulo-a-service.yaml`: Expõe o Módulo A internamente no cluster (`ClusterIP`), permitindo que o Gateway P o encontre através do nome `modulo-a-service`.
 - `modulo-b-deployment.yaml`: Define o estado desejado para o Módulo B.
