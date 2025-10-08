@@ -392,3 +392,92 @@ http://localhost:3000
 - ✅ **Teste Módulo B**: Testa diretamente o endpoint REST do Módulo B
 - ✅ **Interface Simples**: Formulários intuitivos para todos os testes
 - ✅ **Auto-start**: Módulos REST iniciam automaticamente
+
+## Deploy com Kubernetes (Minikube)
+
+Esta seção detalha como implantar a aplicação em um cluster Kubernetes local utilizando o Minikube, simulando um ambiente de produção Cloud Native.
+
+### Arquivos de Configuração
+
+O deploy no Kubernetes é definido de forma declarativa através dos arquivos de manifesto (`.yaml`) localizados na pasta `kubernetes/`.
+
+-   `namespace.yaml`: Cria um espaço de trabalho isolado chamado `projeto-distribuido` para organizar todos os recursos da nossa aplicação.
+-   `modulo-a-deployment.yaml`: Define o estado desejado para o Módulo A, especificando a imagem Docker a ser usada e o número de réplicas.
+-   `modulo-a-service.yaml`: Expõe o Módulo A internamente no cluster (`ClusterIP`), permitindo que o Gateway P o encontre através do nome `modulo-a-service`.
+-   `modulo-b-deployment.yaml`: Define o estado desejado para o Módulo B.
+-   `modulo-b-service.yaml`: Expõe o Módulo B internamente no cluster (`ClusterIP`) com o nome `modulo-b-service`.
+-   `modulo-p-deployment.yaml`: Define o estado desejado para o Módulo P (Gateway).
+-   `modulo-p-service.yaml`: Expõe o Gateway para acesso externo através de uma porta no nó do cluster (`NodePort`), tornando a aplicação acessível para o usuário.
+
+### Instruções para o Deploy do Backend
+
+O script `kubernetes_start.sh` automatiza todo o processo de deploy do backend.
+
+1.  **Dê permissão de execução ao script:**
+    ```bash
+    chmod +x kubernetes_start.sh
+    ```
+
+2.  **Execute o script de deploy:**
+    ```bash
+    ./kubernetes_start.sh
+    ```
+    O script irá realizar as seguintes etapas:
+    -   Verificar se Docker e Minikube estão instalados.
+    -   Iniciar o cluster Minikube.
+    -   Conectar o ambiente Docker ao daemon do Minikube.
+    -   Construir as imagens Docker dos três módulos.
+    -   Aplicar todos os manifestos `.yaml` na ordem correta.
+    -   Aguardar até que todos os Pods estejam no estado `Running`.
+
+### Acessando a Aplicação (Frontend + Backend)
+
+Após o script `kubernetes_start.sh` finalizar, seu backend estará rodando no Kubernetes. Para interagir com a aplicação através da interface web, siga os passos:
+
+1.  **Obtenha a URL do Backend (Gateway):**
+    Abra um **novo terminal** e execute o comando abaixo para descobrir o endereço do seu gateway.
+    ```bash
+    minikube service modulo-p-service -n projeto-distribuido --url
+    ```
+    Copie a URL retornada (algo como `http://192.168.49.2:30385`).
+
+2.  **Inicie o Servidor do Frontend:**
+    Ainda no mesmo terminal, navegue até a pasta `frontend` e inicie o servidor, passando a URL do backend como uma variável de ambiente. Substitua `<URL_DO_MINIKUBE>` pela URL que você copiou.
+
+    **No Linux/macOS:**
+    ```bash
+    export GATEWAY_URL="<URL_DO_MINIKUBE>"
+    cd frontend
+    npm install  # Execute apenas na primeira vez
+    npm start
+    ```
+
+    **No Windows (PowerShell):**
+    ```powershell
+    $env:GATEWAY_URL="<URL_DO_MINIKUBE>"
+    cd frontend
+    npm install  # Execute apenas na primeira vez
+    npm start
+    ```
+
+3.  **Acesse a Interface Web:**
+    Abra seu navegador e acesse a URL do frontend, que estará rodando localmente:
+    ```
+    http://localhost:3000
+    ```
+    A interface agora estará conectada ao seu backend no Kubernetes e todos os testes funcionarão.
+
+### Gerenciamento do Ambiente
+
+-   **Para pausar o cluster** e liberar os recursos (CPU/RAM) do seu computador, execute:
+    ```bash
+    minikube stop
+    ```
+-   **Para retomar o trabalho**, simplesmente reinicie o cluster (é mais rápido que a primeira vez):
+    ```bash
+    minikube start
+    ```
+-   **Para apagar completamente o cluster** e todos os recursos, execute:
+    ```bash
+    minikube delete
+    ```

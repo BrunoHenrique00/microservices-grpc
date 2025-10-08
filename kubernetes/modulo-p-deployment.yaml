@@ -21,6 +21,8 @@ spec:
         imagePullPolicy: IfNotPresent
         env:
           - name: MODULO_A_HOST
-            value: "modulo-a-service" # Usa o nome do Service do K8s
+            value: "modulo-a-service" 
           - name: MODULO_B_HOST
-            value: "modulo-b-service" # Usa o nome do Service do K8s
+            value: "modulo-b-service" 
+          - name: GRPC_DNS_RESOLVER
+            value: "native"

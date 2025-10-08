@@ -15,6 +15,8 @@ app.use(express.json());
 let restServerA = null;
 let restServerB = null;
 
+const GATEWAY_URL = process.env.GATEWAY_URL || "http://localhost:8000";
+
 // Função para iniciar servidores REST
 function startRestServers() {
   const projectDir = path.join(__dirname, "..");
@@ -47,7 +49,7 @@ app.get("/", (req, res) => {
 app.post("/api/test/executar", async (req, res) => {
   try {
     const response = await axios.post(
-      "http://localhost:8000/api/executar",
+      `${GATEWAY_URL}/api/executar`,
       req.body
     );
     res.json({ success: true, data: response.data });

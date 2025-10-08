@@ -174,4 +174,4 @@ coverage.xml
 
 # Database
 *.db
-*.sqlite3
+*.sqlite3minikube-linux-amd64
