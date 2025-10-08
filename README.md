@@ -373,6 +373,27 @@ Funcionalidades do Frontend:
 - ✅ **Interface Simples**: Formulários intuitivos para todos os testes
 - ✅ **Auto-start**: Módulos REST iniciam automaticamente
 
+## Comparação de Desempenho gRPC x REST no Frontend
+
+O frontend web deste projeto possui um painel de **Comparação gRPC x REST** que permite comparar, de forma prática e visual, o tempo de resposta entre os dois tipos de comunicação.
+
+### Como funciona o teste de comparação
+
+- O frontend envia **5 requisições** para o gateway (gRPC) e para o endpoint REST do Módulo A.
+- Para gRPC, a requisição segue o fluxo: **Frontend → Gateway (FastAPI) → gRPC → Módulo A (Node.js)**.
+- Para REST, a requisição vai **direto do Frontend para o endpoint REST do Módulo A (Node.js)**.
+- O tempo de resposta de cada requisição é medido individualmente e a média dos tempos é calculada para cada abordagem.
+- O resultado mostra:
+  - A média dos tempos de resposta para gRPC e REST
+  - Os tempos individuais de cada requisição
+  - A diferença média entre gRPC e REST
+  - Indicação visual de qual abordagem foi mais rápida
+
+### O que está sendo comparado?
+
+- **gRPC (via gateway):** Mede o tempo total do caminho Frontend → FastAPI (gateway) → gRPC → Node.js → resposta. Inclui o overhead do gateway e do protocolo gRPC.
+- **REST (direto):** Mede o tempo do caminho Frontend → Node.js (REST) → resposta, sem intermediários.
+
 ## Deploy com Kubernetes (Minikube)
 
 Esta seção detalha como implantar a aplicação em um cluster Kubernetes local utilizando o Minikube, simulando um ambiente de produção Cloud Native.
@@ -381,19 +402,20 @@ Esta seção detalha como implantar a aplicação em um cluster Kubernetes local
 
 O deploy no Kubernetes é definido de forma declarativa através dos arquivos de manifesto (`.yaml`) localizados na pasta `kubernetes/`.
 
--   `namespace.yaml`: Cria um espaço de trabalho isolado chamado `projeto-distribuido` para organizar todos os recursos da nossa aplicação.
--   `modulo-a-deployment.yaml`: Define o estado desejado para o Módulo A, especificando a imagem Docker a ser usada e o número de réplicas.
--   `modulo-a-service.yaml`: Expõe o Módulo A internamente no cluster (`ClusterIP`), permitindo que o Gateway P o encontre através do nome `modulo-a-service`.
--   `modulo-b-deployment.yaml`: Define o estado desejado para o Módulo B.
--   `modulo-b-service.yaml`: Expõe o Módulo B internamente no cluster (`ClusterIP`) com o nome `modulo-b-service`.
--   `modulo-p-deployment.yaml`: Define o estado desejado para o Módulo P (Gateway).
--   `modulo-p-service.yaml`: Expõe o Gateway para acesso externo através de uma porta no nó do cluster (`NodePort`), tornando a aplicação acessível para o usuário.
+- `namespace.yaml`: Cria um espaço de trabalho isolado chamado `projeto-distribuido` para organizar todos os recursos da nossa aplicação.
+- `modulo-a-deployment.yaml`: Define o estado desejado para o Módulo A, especificando a imagem Docker a ser usada e o número de réplicas.
+- `modulo-a-service.yaml`: Expõe o Módulo A internamente no cluster (`ClusterIP`), permitindo que o Gateway P o encontre através do nome `modulo-a-service`.
+- `modulo-b-deployment.yaml`: Define o estado desejado para o Módulo B.
+- `modulo-b-service.yaml`: Expõe o Módulo B internamente no cluster (`ClusterIP`) com o nome `modulo-b-service`.
+- `modulo-p-deployment.yaml`: Define o estado desejado para o Módulo P (Gateway).
+- `modulo-p-service.yaml`: Expõe o Gateway para acesso externo através de uma porta no nó do cluster (`NodePort`), tornando a aplicação acessível para o usuário.
 
 ### Instruções para o Deploy do Backend
 
 O script `kubernetes_start.sh` automatiza todo o processo de deploy do backend.
 
 1.  **Dê permissão de execução ao script:**
+
     ```bash
     chmod +x kubernetes_start.sh
     ```
@@ -403,12 +425,12 @@ O script `kubernetes_start.sh` automatiza todo o processo de deploy do backend.
     ./kubernetes_start.sh
     ```
     O script irá realizar as seguintes etapas:
-    -   Verificar se Docker e Minikube estão instalados.
-    -   Iniciar o cluster Minikube.
-    -   Conectar o ambiente Docker ao daemon do Minikube.
-    -   Construir as imagens Docker dos três módulos.
-    -   Aplicar todos os manifestos `.yaml` na ordem correta.
-    -   Aguardar até que todos os Pods estejam no estado `Running`.
+    - Verificar se Docker e Minikube estão instalados.
+    - Iniciar o cluster Minikube.
+    - Conectar o ambiente Docker ao daemon do Minikube.
+    - Construir as imagens Docker dos três módulos.
+    - Aplicar todos os manifestos `.yaml` na ordem correta.
+    - Aguardar até que todos os Pods estejam no estado `Running`.
 
 ### Acessando a Aplicação (Frontend + Backend)
 
@@ -416,15 +438,18 @@ Após o script `kubernetes_start.sh` finalizar, seu backend estará rodando no K
 
 1.  **Obtenha a URL do Backend (Gateway):**
     Abra um **novo terminal** e execute o comando abaixo para descobrir o endereço do seu gateway.
+
     ```bash
     minikube service modulo-p-service -n projeto-distribuido --url
     ```
+
     Copie a URL retornada (algo como `http://192.168.49.2:30385`).
 
 2.  **Inicie o Servidor do Frontend:**
     Ainda no mesmo terminal, navegue até a pasta `frontend` e inicie o servidor, passando a URL do backend como uma variável de ambiente. Substitua `<URL_DO_MINIKUBE>` pela URL que você copiou.
 
     **No Linux/macOS:**
+
     ```bash
     export GATEWAY_URL="<URL_DO_MINIKUBE>"
     cd frontend
@@ -433,6 +458,7 @@ Após o script `kubernetes_start.sh` finalizar, seu backend estará rodando no K
     ```
 
     **No Windows (PowerShell):**
+
     ```powershell
     $env:GATEWAY_URL="<URL_DO_MINIKUBE>"
     cd frontend
@@ -449,15 +475,15 @@ Após o script `kubernetes_start.sh` finalizar, seu backend estará rodando no K
 
 ### Gerenciamento do Ambiente
 
--   **Para pausar o cluster** e liberar os recursos (CPU/RAM) do seu computador, execute:
-    ```bash
-    minikube stop
-    ```
--   **Para retomar o trabalho**, simplesmente reinicie o cluster (é mais rápido que a primeira vez):
-    ```bash
-    minikube start
-    ```
--   **Para apagar completamente o cluster** e todos os recursos, execute:
-    ```bash
-    minikube delete
-    ```
+- **Para pausar o cluster** e liberar os recursos (CPU/RAM) do seu computador, execute:
+  ```bash
+  minikube stop
+  ```
+- **Para retomar o trabalho**, simplesmente reinicie o cluster (é mais rápido que a primeira vez):
+  ```bash
+  minikube start
+  ```
+- **Para apagar completamente o cluster** e todos os recursos, execute:
+  ```bash
+  minikube delete
+  ```
