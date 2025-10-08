@@ -1,76 +1,89 @@
 # Exemplos de Chamadas gRPC
 
-Este documento apresenta exemplos de chamadas gRPC utilizando o serviço definido em `protos/servico.proto`. Os exemplos cobrem os principais tipos de chamadas gRPC:
+Resumo
 
-- Unary (requisição-resposta simples)
-- Server Streaming (resposta em fluxo)
-- Client Streaming (requisição em fluxo)
-- Bidirectional Streaming (fluxo bidirecional)
+Este documento reúne exemplos práticos dos quatro tipos de RPC definidos em `protos/servico.proto` e mostra como gerar os stubs e executar os clientes de exemplo em Python.
 
-## 1. Unary
+Serviços (resumo)
 
-O cliente envia uma requisição e recebe uma única resposta.
+- `ServicoA.RealizarTarefaA` — Unary
+- `ServicoB.RealizarTarefaB` — Server-streaming
+- `ServicoC.RealizarTarefaC` — Client-streaming
+- `ServicoD.RealizarTarefaD` — Bidirectional-streaming
 
-```python
-# Exemplo em Python
-def run_unary_example(stub):
-    request = servico_pb2.SuaMensagemRequest(campo="valor")
-    response = stub.SuaFuncaoUnary(request)
-    print("Resposta:", response)
+Pré-requisitos
+
+- Python 3.11+ (ou o Python configurado no projeto)
+- pacote `grpcio` e `grpcio-tools` instalados (veja `requirements.txt` do `modulo_P`)
+- As portas padrões usadas nos exemplos:
+  - Módulo A (gRPC): `localhost:50051`
+  - Módulo B (gRPC): `localhost:50052`
+
+Gerar os stubs Python
+
+Gere os arquivos `servico_pb2.py` e `servico_pb2_grpc.py` dentro de `examples/python`:
+
+```bash
+cd examples/python
+python -m grpc_tools.protoc -I../../protos --python_out=. --grpc_python_out=. ../../protos/servico.proto
 ```
 
-## 2. Server Streaming
+Executando os exemplos (modo rápido com mocks inline)
 
-O cliente envia uma requisição e recebe um fluxo de respostas do servidor.
+Os testes criados em `examples/python/` iniciam servidores mock inline (não dependem do Docker). São úteis para validar funcionalidade localmente.
 
-```python
-# Exemplo em Python
-def run_server_streaming_example(stub):
-    request = servico_pb2.SuaMensagemRequest(campo="valor")
-    for response in stub.SuaFuncaoServerStreaming(request):
-        print("Resposta parcial:", response)
+No Windows (PowerShell) execute:
+
+```powershell
+C:/Python312/python.exe .\examples\python\test_run_unary_local.py
+C:/Python312/python.exe .\examples\python\test_run_server_streaming_local.py
+C:/Python312/python.exe .\examples\python\test_run_client_streaming_local.py
+C:/Python312/python.exe .\examples\python\test_run_bidi_local.py
 ```
 
-## 3. Client Streaming
+Ou em Linux/macOS (bash):
 
-O cliente envia um fluxo de requisições e recebe uma única resposta do servidor.
-
-```python
-# Exemplo em Python
-def run_client_streaming_example(stub):
-    def request_generator():
-        for valor in ["a", "b", "c"]:
-            yield servico_pb2.SuaMensagemRequest(campo=valor)
-    response = stub.SuaFuncaoClientStreaming(request_generator())
-    print("Resposta:", response)
+```bash
+python3 examples/python/test_run_unary_local.py
+python3 examples/python/test_run_server_streaming_local.py
+python3 examples/python/test_run_client_streaming_local.py
+python3 examples/python/test_run_bidi_local.py
 ```
 
-## 4. Bidirectional Streaming
+Clientes individuais
 
-O cliente e o servidor trocam fluxos de mensagens simultaneamente.
+- `examples/python/client_unary.py` — Chama `ServicoA.RealizarTarefaA`.
+- `examples/python/client_server_streaming.py` — Chama `ServicoB.RealizarTarefaB` e itera sobre o stream.
+- `examples/python/client_client_streaming.py` — Envia múltiplas `RequestC` e recebe `ResponseC` agregada.
+- `examples/python/client_bidi_streaming.py` — Comunicação bidirecional exemplo.
+
+Trecho de exemplo (unary)
 
 ```python
-# Exemplo em Python
-def run_bidi_streaming_example(stub):
-    def request_generator():
-        for valor in ["a", "b", "c"]:
-            yield servico_pb2.SuaMensagemRequest(campo=valor)
-    for response in stub.SuaFuncaoBidiStreaming(request_generator()):
-        print("Resposta parcial:", response)
+import grpc
+import servico_pb2
+import servico_pb2_grpc
+
+channel = grpc.insecure_channel('localhost:50051')
+stub = servico_pb2_grpc.ServicoAStub(channel)
+req = servico_pb2.RequestA(id='req-1', data='hello', operation='uppercase')
+resp = stub.RealizarTarefaA(req)
+print('Response:', resp)
 ```
 
----
+Boas práticas e observações
 
-> **Observação:**
-> Substitua `SuaMensagemRequest`, `SuaFuncaoUnary`, etc., pelos nomes reais definidos no seu arquivo `servico.proto`.
-> Para rodar os exemplos, gere os arquivos Python a partir do proto e utilize o stub gerado.
+- Sempre regenere os stubs se modificar `protos/servico.proto`.
+- Se for executar com Docker Compose, use as portas mapeadas no `docker-compose.yml`.
+- Em ambiente Windows atente para finais de linha (CRLF) e para o caminho do executável Python.
+- Se preferir exemplos em Node.js, podemos adicionar clientes equivalentes em `examples/node/`.
 
-## Como executar os exemplos
+Troubleshooting rápido
 
-1. Gere os arquivos a partir do proto:
-   ```bash
-   python -m grpc_tools.protoc -I../protos --python_out=. --grpc_python_out=. ../protos/servico.proto
-   ```
-2. Importe o stub e execute as funções de exemplo em um script Python.
+- Erro de conexão (Connection refused): verifique se o serviço alvo está em execução e a porta correta.
+- Erro de versão do grpc ao importar stubs: alinhe a versão de `grpcio`/`grpcio-tools` usada para gerar os stubs.
 
-Consulte o arquivo `servico.proto` para detalhes dos métodos disponíveis.
+Referências
+
+- `protos/servico.proto`
+- `examples/python/README.md` (instruções específicas dos exemplos)

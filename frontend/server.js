@@ -1,9 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
-const { exec, spawn } = require("child_process");
 const path = require("path");
-
 const app = express();
 const PORT = 3000;
 
@@ -62,7 +60,7 @@ app.post("/api/test/executar", async (req, res) => {
 app.post("/api/test/modulo-a", async (req, res) => {
   try {
     const response = await axios.post(
-      "http://localhost:5001/realizar-tarefa-a",
+      "http://modulo-a:5001/realizar-tarefa-a",
       req.body
     );
     res.json({ success: true, data: response.data });
@@ -75,7 +73,7 @@ app.post("/api/test/modulo-a", async (req, res) => {
 app.post("/api/test/modulo-b", async (req, res) => {
   try {
     const response = await axios.post(
-      "http://localhost:5002/realizar-tarefa-b",
+      "http://modulo-b:5002/realizar-tarefa-b",
       req.body
     );
     res.json({ success: true, data: response.data });
@@ -87,7 +85,4 @@ app.post("/api/test/modulo-b", async (req, res) => {
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Frontend: http://localhost:${PORT}`);
-
-  // Iniciar servidores REST automaticamente
-  startRestServers();
 });
