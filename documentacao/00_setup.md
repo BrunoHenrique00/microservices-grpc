@@ -89,4 +89,5 @@ minikube kubectl -- logs <POD_NAME> -n projeto-distribuido --tail=200
 ```
 
 ## Notas finais
-- Este arquivo é um guia mínimo para Linux/WSL. Posso adicionar instruções de VS Code (select interpreter) ou scripts de automação se desejar.
+
+- Este arquivo é um guia mínimo para Linux/WSL
