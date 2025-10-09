@@ -65,6 +65,38 @@ Frontend (HTTP) → Módulo P (FastAPI) → gRPC → Módulo A → gRPC → Mód
 - Encadeamento de respostas entre módulos
 - Interface web para testes e comparação
 
+#### Módulo P (Gateway - Python/FastAPI)
+- **Porta:** 8000
+- **Endpoints implementados:**
+  - `GET /` - Informações básicas do serviço
+  - `POST /api/executar` - Endpoint principal para execução de tarefas
+  - `GET /health` - Health check do gateway
+  - `GET /docs` - Documentação automática da API (Swagger)
+
+- **Funcionalidades:**
+  - Conversão de requisições HTTP/JSON para chamadas gRPC
+  - Orquestração sequencial de chamadas para Módulos A e B
+  - Tratamento de erros e timeouts
+  - Logging estruturado de operações
+
+#### Módulo A (Microserviço Unary - Node.js)
+- **Porta gRPC:** 50051
+- **Serviço:** `ServicoA.RealizarTarefaA` (método unary)
+- **Operações implementadas:**
+  - `uppercase`: Conversão para maiúsculas
+  - `lowercase`: Conversão para minúsculas
+  - `reverse`: Inversão de string
+  - `length`: Cálculo do comprimento
+  - `default`: Processamento padrão com timestamp
+
+#### Módulo B (Microserviço Streaming - Node.js)
+- **Porta gRPC:** 50052
+- **Serviço:** `ServicoB.RealizarTarefaB` (método server-streaming)
+- **Funcionalidades:**
+  - Stream de respostas múltiplas (1-10 respostas configuráveis)
+  - Processamento progressivo com diferentes tipos por sequência
+  - Controle de cancelamento de stream
+
 #### Instanciação do Serviço
 
 - Utilização de Docker Compose para orquestração local
@@ -140,7 +172,7 @@ O experimento demonstrou, na prática, as vantagens do gRPC em relação ao REST
 
 ### Opinião e Aprendizado dos Alunos
 
-- **Bruno Henrique Cardoso:** [Descrever opinião, aprendizados e autoavaliação]
+- **Bruno Henrique Cardoso:** Aprendi mais sobre como usar o gRPC nas linguagens que uso no dia a dia e pude entender como fazer esses serviços se comunicarem e dar o deploy disso. Creio que pude aprender bastante e contribuir para a entrega do trabalho.
 - **Guilherme Dib França:** [Descrever opinião, aprendizados e autoavaliação]
 - **João Gabriel Elvas:**
   Participei ativamente da integração dos módulos, configuração do Docker Compose e criação do frontend para comparar gRPC e REST. Aprendi bastante sobre arquitetura de microserviços, comunicação entre containers e uso do Kubernetes. Meu envolvimento foi alto em todas as etapas do projeto.
