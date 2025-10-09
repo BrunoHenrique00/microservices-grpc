@@ -180,6 +180,12 @@ O experimento demonstrou, na prática, as vantagens do gRPC em relação ao REST
 
 ---
 
+## Vídeo Apresentação
+
+- https://youtu.be/LBjD7x4o24M
+
+---
+
 ## Apêndice/Anexo
 
 - **Definição de Interface gRPC:** Ver arquivo `protos/servico.proto`
