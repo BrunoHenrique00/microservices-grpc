@@ -487,3 +487,7 @@ Após o script `kubernetes_start.sh` finalizar, seu backend estará rodando no K
   ```bash
   minikube delete
   ```
+
+## Entrega
+
+- O relatório e vídeo de apresentação está disponível em: [`relatorio.md`](./relatorio.md)
