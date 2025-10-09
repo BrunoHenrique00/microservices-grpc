@@ -173,7 +173,7 @@ O experimento demonstrou, na prática, as vantagens do gRPC em relação ao REST
 ### Opinião e Aprendizado dos Alunos
 
 - **Bruno Henrique Cardoso:** Aprendi mais sobre como usar o gRPC nas linguagens que uso no dia a dia e pude entender como fazer esses serviços se comunicarem e dar o deploy disso. Creio que pude aprender bastante e contribuir para a entrega do trabalho.
-- **Guilherme Dib França:** [Descrever opinião, aprendizados e autoavaliação]
+- **Guilherme Dib França:** Gostei muito de colocar em prática os conhecimentos sobre Kubernetes que eu utilizo no trabalho e pude utilizá-los no meio academico pela primeira vez, o aprendizado sobre o framework gRPC me ensinou bastante a visualizar a comunicação entre cliente e servidor de forma diferente da usual que eu costumo utilizar, foi bem desafiador realizar esse projeto. Me dediquei em todas as etapas do projeto tanto na parte teórica quanto prática e consegui absorver muito conhecimento contribuindo para a entrega e para meu desenvolvimento profissional.
 - **João Gabriel Elvas:**
   Participei ativamente da integração dos módulos, configuração do Docker Compose e criação do frontend para comparar gRPC e REST. Aprendi bastante sobre arquitetura de microserviços, comunicação entre containers e uso do Kubernetes. Meu envolvimento foi alto em todas as etapas do projeto.
 - **Pedro Henrique Nogueira:** [Descrever opinião, aprendizados e autoavaliação]
