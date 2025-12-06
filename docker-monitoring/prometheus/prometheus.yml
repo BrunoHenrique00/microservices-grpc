@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['prometheus:9090']
+
+  # Exemplo de scrape de microserviços gRPC
+  # Ajuste IP/porta conforme seus serviços
+  - job_name: 'grpc_services'
+    static_configs:
+      - targets:
+          - 'localhost:50051'
+          - 'localhost:50052'
+          - 'localhost:50053'

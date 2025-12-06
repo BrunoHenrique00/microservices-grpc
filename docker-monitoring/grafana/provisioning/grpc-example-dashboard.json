@@ -1,0 +1,34 @@
+{
+  "id": null,
+  "uid": "grpc-example",
+  "title": "gRPC Example Monitoring",
+  "timezone": "browser",
+  "schemaVersion": 32,
+  "version": 1,
+  "panels": [
+    {
+      "type": "graph",
+      "title": "gRPC Requests",
+      "targets": [
+        {
+          "expr": "rate(grpc_server_handled_total[1m])",
+          "legendFormat": "{{grpc_method}}",
+          "interval": ""
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "type": "graph",
+      "title": "gRPC Latency",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket[2m])) by (le, grpc_method))",
+          "legendFormat": "{{grpc_method}} p95"
+        }
+      ],
+      "datasource": "Prometheus"
+    }
+  ]
+}
+
