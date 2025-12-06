@@ -8,6 +8,15 @@ const PORT = 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Desabilitar cache para desenvolvimento
+app.use((req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  next();
+});
+
 // Servir arquivos estáticos (CSS, imagens, etc)
 app.use(express.static(__dirname));
 
@@ -40,9 +49,38 @@ function startRestServers() {
   }
 }
 
-// Página principal
+// Página principal - agora redireciona para o chat
 app.get("/", (req, res) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  res.sendFile(path.join(__dirname, "chat.html"));
+});
+
+// Página de chat
+app.get("/chat", (req, res) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  res.sendFile(path.join(__dirname, "chat.html"));
+});
+
+// Página de testes original
+app.get("/test", (req, res) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
   res.sendFile(path.join(__dirname, "index.html"));
+});
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.json({
+    status: "healthy",
+    service: "Chat Frontend",
+    timestamp: new Date().toISOString(),
+    version: "2.0.0",
+  });
 });
 
 // Proxy para teste principal
@@ -60,7 +98,7 @@ app.post("/api/test/modulo-a", async (req, res) => {
   try {
     const response = await axios.post(
       "http://modulo-a:5001/realizar-tarefa-a",
-      req.body
+      req.body,
     );
     res.json({ success: true, data: response.data });
   } catch (error) {
@@ -73,7 +111,7 @@ app.post("/api/test/modulo-b", async (req, res) => {
   try {
     const response = await axios.post(
       "http://modulo-b:5002/realizar-tarefa-b",
-      req.body
+      req.body,
     );
     res.json({ success: true, data: response.data });
   } catch (error) {
@@ -111,7 +149,7 @@ app.post("/api/test/comparar", async (req, res) => {
       const restStart = Date.now();
       const restResp = await axios.post(
         "http://modulo-a:5001/realizar-tarefa-a",
-        { id, data, operation }
+        { id, data, operation },
       );
       restTimes.push(Date.now() - restStart);
       if (i === 0) restResult = restResp.data;

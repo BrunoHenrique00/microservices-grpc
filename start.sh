@@ -25,10 +25,11 @@ echo "🧹 Limpando containers anteriores..."
 docker compose down 2>/dev/null
 
 echo ""
-echo "🔨 Construindo e iniciando serviços..."
-echo "   - Módulo A (gRPC Server - porta 50051)"
-echo "   - Módulo B (gRPC Server - porta 50052)" 
-echo "   - Módulo P (Gateway HTTP - porta 8000)"
+echo "🔨 Construindo e iniciando serviços de chat..."
+echo "   - Módulo A (UserService + ChatService - porta 50051)"
+echo "   - Módulo B (FileService - porta 50052)" 
+echo "   - Módulo P (WebSocket Gateway - porta 8000)"
+echo "   - Frontend (Chat Interface - porta 3000)"
 echo ""
 
 # Inicia os serviços
@@ -46,49 +47,57 @@ echo "🔍 Verificando status dos serviços..."
 
 services_ok=true
 
-# Verifica Módulo A
+# Verifica Módulo A (UserService + ChatService)
 if docker compose ps modulo-a | grep -q "Up"; then
-    echo "✅ Módulo A: Running (porta 50051)"
+    echo "✅ Módulo A (UserService + ChatService): Running (porta 50051)"
 else
     echo "❌ Módulo A: Failed"
     services_ok=false
 fi
 
-# Verifica Módulo B
+# Verifica Módulo B (FileService)
 if docker compose ps modulo-b | grep -q "Up"; then
-    echo "✅ Módulo B: Running (porta 50052)"
+    echo "✅ Módulo B (FileService): Running (porta 50052)"
 else
     echo "❌ Módulo B: Failed"
     services_ok=false
 fi
 
-# Verifica Módulo P
+# Verifica Módulo P (Gateway/WebSocket)
 if docker compose ps modulo-p | grep -q "Up"; then
-    echo "✅ Módulo P: Running (porta 8000)"
+    echo "✅ Módulo P (WebSocket Gateway): Running (porta 8000)"
 else
     echo "❌ Módulo P: Failed"
+    services_ok=false
+fi
+
+# Verifica Frontend
+if docker compose ps chat-frontend | grep -q "Up"; then
+    echo "✅ Frontend (Chat Interface): Running (porta 3000)"
+else
+    echo "❌ Frontend: Failed"
     services_ok=false
 fi
 
 echo ""
 
 if [ "$services_ok" = true ]; then
-    echo "🎉 Todos os serviços estão rodando com sucesso!"
+    echo "🎉 Sistema de Chat em Tempo Real está funcionando!"
     echo ""
     echo "📋 URLs disponíveis:"
-    echo "   🌐 API Gateway: http://localhost:8000"
-    echo "   📖 Documentação: http://localhost:8000/docs"
+    echo "   💬 Chat Interface: http://localhost:3000"
+    echo "   🌐 WebSocket Gateway: http://localhost:8000"
+    echo "   📖 API Documentation: http://localhost:8000/docs"
     echo "   💚 Health Check: http://localhost:8000/health"
     echo ""
-    echo "🔧 Exemplo de uso:"
-    echo "curl -X POST \"http://localhost:8000/api/executar\" \\"
-    echo "     -H \"Content-Type: application/json\" \\"
-    echo "     -d '{"
-    echo "       \"id\": \"teste-001\","
-    echo "       \"data\": \"hello_world\","
-    echo "       \"operation\": \"uppercase\","
-    echo "       \"count\": 3"
-    echo "     }'"
+    echo "🚀 Como usar o Chat:"
+    echo "   1. Abra seu navegador em http://localhost:3000"
+    echo "   2. Digite seu nome de usuário"
+    echo "   3. Entre na sala 'global' ou crie uma nova"
+    echo "   4. Comece a conversar em tempo real!"
+    echo ""
+    echo "🔧 Teste via WebSocket diretamente:"
+    echo "   ws://localhost:8000/ws/global?username=SEU_NOME"
     echo ""
     echo "📊 Para ver logs em tempo real:"
     echo "   docker compose logs -f"

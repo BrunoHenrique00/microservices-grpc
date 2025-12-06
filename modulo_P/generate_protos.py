@@ -40,8 +40,14 @@ def generate_grpc_stubs():
         
         print("✅ Stubs gRPC gerados com sucesso!")
         print("📁 Arquivos gerados:")
-        print("   - servico_pb2.py")
-        print("   - servico_pb2_grpc.py")
+        print("   - servico_pb2.py (mensagens protobuf)")
+        print("   - servico_pb2_grpc.py (serviços gRPC)")
+        print("")
+        print("🎯 Serviços disponíveis:")
+        print("   - ServicoA: Processamento unary")
+        print("   - ServicoB: Streaming server-side")
+        print("   - UserService: Gestão de usuários")
+        print("   - ChatService: Chat em tempo real")
         
     except subprocess.CalledProcessError as e:
         print(f"❌ Erro ao gerar stubs: {e}")

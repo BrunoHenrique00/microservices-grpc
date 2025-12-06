@@ -185,7 +185,7 @@ O experimento demonstrou, na prática, as vantagens do gRPC em relação ao REST
 - **Definição de Interface gRPC:** Ver arquivo `protos/servico.proto`
 - **Scripts de Teste:** Ver `documentacao/teste_performance.py` e exemplos em `examples/python/`
 - **Instruções de Execução:**
-  - Docker Compose: `docker compose up --build -d`
+  - Docker Compose: `./start.sh`
   - Kubernetes: `./kubernetes_start.sh`
 - **Comentários sobre os Códigos:**
   - Documentação inline nos arquivos fonte

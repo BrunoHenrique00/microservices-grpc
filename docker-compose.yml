@@ -35,24 +35,24 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # Módulo P - Gateway/Proxy (Python FastAPI)
+  # Módulo P - Gateway/Proxy (Python FastAPI) - Agora com WebSocket para Chat
   modulo-p:
     build:
       context: .
       dockerfile: modulo_P/Dockerfile
-    container_name: modulo-p-gateway
+    container_name: modulo-p-chat-gateway
     ports:
-      - "8000:8000"
-    networks:
-      - grpc-network
-    depends_on:
-      - modulo-a
-      - modulo-b
+      - "8000:8000"  # HTTP/WebSocket para frontend
     environment:
       - MODULO_A_HOST=modulo-a
       - MODULO_A_PORT=50051
       - MODULO_B_HOST=modulo-b
       - MODULO_B_PORT=50052
+    networks:
+      - grpc-network
+    depends_on:
+      - modulo-a
+      - modulo-b
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -60,12 +60,12 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # Frontend (Node.js)
-  frontend:
+  # Frontend com Chat HTML
+  chat-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: frontend-app
+    container_name: chat-frontend
     ports:
       - "3000:3000"
     networks:
