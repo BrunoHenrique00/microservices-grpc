@@ -71,3 +71,10 @@ A primeira etapa é instalar as bibliotecas necessárias para rodar o Locust e l
 ```bash
 # 1. Instala o Locust e as bibliotecas WebSocket (gevent-websocket e websocket-client)
 pip install locust gevent-websocket websocket-client
+```
+
+### 2. Comando para executar o teste com o locust
+
+```bash
+locust -f locustfile.py
+```
