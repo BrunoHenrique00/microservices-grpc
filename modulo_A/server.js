@@ -4,6 +4,9 @@
  * E o UserService para gestão de usuários do chat
  */
 
+require("./metrics");
+import("./metrics");
+
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
 const path = require("path");
