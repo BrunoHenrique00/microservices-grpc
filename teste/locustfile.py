@@ -1,7 +1,7 @@
 import time
 import json
 import random
-from teste.locustfile import HttpUser, task, between, events
+from locust import HttpUser, task, between, events
 from geventwebsocket.exceptions import WebSocketError
 from websocket import create_connection, WebSocketConnectionClosedException, WebSocketTimeoutException
 

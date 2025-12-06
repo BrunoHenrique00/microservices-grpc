@@ -36,7 +36,7 @@ A metodologia adotada neste projeto visa identificar o arranjo ideal da aplicaç
 O objetivo desta fase foi determinar o limite operacional da **Configuração Base** (1 réplica para P, A e B). Aumentamos o número de usuários ativos progressivamente (de 100 a 100.000 usuários) para identificar o ponto de saturação.
 
 * **Foco da Análise:** Os testes revelaram que o principal gargalo não é o envio de mensagens (latência do `/ws/chat/send_text` permaneceu em $0.01 \text{ ms}$ mesmo sob extrema carga), mas sim a **capacidade de estabelecer novas conexões**.
-* **Ponto de Degradação:** A latência média (`Average (ms)`) para estabelecer a conexão (`/ws/chat/connect`) aumentou significativamente a partir de **2.000 usuários**, atingindo $69.57 \text{ ms}$ e, posteriormente, **$124.56 \text{ ms}$ com 100.000 usuários}$.
+* **Ponto de Degradação:** A latência média (`Average (ms)`) para estabelecer a conexão (`/ws/chat/connect`) aumentou significativamente a partir de **2.000 usuários**, atingindo $69.57 \text{ ms}$ e, posteriormente, **$124.56 \text{ ms}$ com 100.000 usuários**.
 * **Identificação do Limite:** O sistema atinge o limite de *throughput* para mensagens em torno de **$290.9 \text{ RPS}$ com 5.000 usuários**. A partir de 100.000 usuários, o RPS de mensagens cai drasticamente para $0.5 \text{ RPS}$ devido à falha massiva no estabelecimento da conexão.
 * **Conclusão:** O limite de **elasticidade da Conexão** (Handshake WebSocket) do Módulo P é o principal fator limitante do sistema na configuração atual.
 
@@ -57,3 +57,17 @@ Nesta fase, introduzimos variações no K8S, mantendo a carga estável de **2.00
 * **Variação de Elasticidade (HPA):** Ativaremos o **Horizontal Pod Autoscaler (HPA)** no **Módulo P** (Gateway) para verificar se o K8S escala automaticamente novas réplicas de P em resposta à alta CPU/Latência de Conexão, resultando em uma **diminuição na latência média** do `/ws/chat/connect` e estabilizando o RPS.
 * **Variação de Réplicas (Performance):** Aumentaremos as réplicas dos **Módulos A e B** para comprovar se os servidores gRPC estavam atuando como um gargalo de processamento.
 * **Conclusão:** Para cada cenário, o desempenho será cruzado com o monitoramento do Prometheus para determinar a configuração mais eficiente para garantir tanto a alta performance quanto a elasticidade do serviço de chat.
+
+---
+
+## 🚀 Passo a Passo: Instalação e Execução do Locust (Para Outros Membros)
+
+Este passo a passo detalha a instalação e execução do Locust no ambiente Linux, assumindo que o Python 3 e o `pip` estão instalados.
+
+### 1. Pré-requisitos (Instalação das Ferramentas)
+
+A primeira etapa é instalar as bibliotecas necessárias para rodar o Locust e lidar com as conexões WebSocket.
+
+```bash
+# 1. Instala o Locust e as bibliotecas WebSocket (gevent-websocket e websocket-client)
+pip install locust gevent-websocket websocket-client
