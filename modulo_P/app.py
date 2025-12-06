@@ -20,6 +20,7 @@ import uuid
 import base64
 from datetime import datetime
 import logging
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # Adiciona o diretório dos protobuf ao path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'protos'))
@@ -35,9 +36,12 @@ except ImportError:
 
 app = FastAPI(title="Módulo P - Chat Gateway", version="2.0.0")
 
+Instrumentator().instrument(app).expose(app)
+
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # Modelos Pydantic para validação das requisições HTTP
 class ExecutarRequest(BaseModel):

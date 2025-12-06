@@ -1,4 +1,36 @@
 services:
+  # ===== MONITORING STACK =====
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9191:9090"
+    volumes:
+      - ./docker-monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    networks:
+      - monitoring-network
+      - grpc-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - monitoring-network
+      - grpc-network
+    restart: unless-stopped
+
+  # ===== GRPC MICROSERVICES =====
   # Módulo A - Microserviço gRPC (Node.js)
   modulo-a:
     build:
@@ -42,7 +74,7 @@ services:
       dockerfile: modulo_P/Dockerfile
     container_name: modulo-p-chat-gateway
     ports:
-      - "8000:8000"  # HTTP/WebSocket para frontend
+      - "8000:8000" # HTTP/WebSocket para frontend
     environment:
       - MODULO_A_HOST=modulo-a
       - MODULO_A_PORT=50051
@@ -75,11 +107,15 @@ services:
     restart: unless-stopped
 
 networks:
+  monitoring-network:
+    driver: bridge
   grpc-network:
     driver: bridge
     name: projeto-distribuido-network
 
-# Volumes para persistência (opcional)
+# Volumes para persistência
 volumes:
+  prometheus-data:
+  grafana-storage:
   logs:
     driver: local
