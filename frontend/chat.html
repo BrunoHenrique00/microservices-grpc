@@ -51,6 +51,21 @@
             opacity: 0.9;
         }
 
+        .user-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            font-size: 0.85rem;
+            color: white;
+        }
+
+        .user-info strong {
+            color: #fff;
+        }
+
         .connection-status {
             position: absolute;
             top: 20px;
@@ -138,11 +153,12 @@
 
         .messages-container {
             flex: 1;
-            overflow-y: auto;
+            overflow-y: scroll;
             overflow-x: hidden;
             padding: 20px;
             background: #f8f9fa;
             scroll-behavior: smooth;
+            max-height: calc(100vh - 300px);
         }
 
         .messages-container::-webkit-scrollbar {
@@ -619,9 +635,13 @@
         <div class="chat-header">
             <h1>💬 Chat em Tempo Real</h1>
             <p>Sistema Distribuído com gRPC e WebSocket</p>
+            <div id="userInfo" class="user-info hidden">
+                Logado como: <strong id="currentUsername"></strong>
+            </div>
             <div id="connectionStatus" class="connection-status status-disconnected">
                 Desconectado
             </div>
+
         </div>
 
         <!-- Tela de Login -->
@@ -715,6 +735,7 @@
                 this.uploadedFiles = new Map(); // Rastrear arquivos enviados
                 this.fileStorage = new Map(); // Armazenar dados binários de arquivos {fileId: {blob, filename, mimeType}}
                 this.inProgressUploads = {}; // Rastrear uploads em progresso {fileId: {chunks, metadata}}
+                this.fileMetadata = {}; // Rastrear metadados de arquivos (username, room_id)
                 this.currentPreviewFile = null; // Arquivo atualmente em preview
 
                 this.initializeElements();
@@ -744,6 +765,8 @@
                 this.usersList = document.getElementById('usersList');
                 this.typingIndicator = document.getElementById('typingIndicator');
                 this.typingText = document.getElementById('typingText');
+                this.userInfo = document.getElementById('userInfo');
+                this.currentUsername = document.getElementById('currentUsername');
 
                 // Elementos do modal de preview
                 this.previewModal = document.getElementById('previewModal');
@@ -900,6 +923,10 @@
                 this.chatInterface.classList.remove('hidden');
                 this.messageInput.focus();
                 this.uploadButton.disabled = false;
+
+                // Mostrar informações do usuário logado
+                this.currentUsername.textContent = this.username;
+                this.userInfo.classList.remove('hidden');
             }
 
             updateConnectionStatus(status) {
@@ -930,8 +957,34 @@
                         this.displayMessage(message, isOwnMessage);
                         break;
                     case 'FILE_SHARE':
-                        const isOwnFile = message.username === this.username;
-                        this.displayFileMessage(message, isOwnFile);
+                        // Armazenar informações do arquivo para recuperar depois dos chunks
+                        if (!this.fileMetadata) {
+                            this.fileMetadata = {};
+                        }
+                        this.fileMetadata[message.file_id] = {
+                            username: message.username,
+                            room_id: message.room_id || this.roomId,
+                            timestamp: message.timestamp
+                        };
+
+                        // Se a mensagem já vem com file_data_b64 (recuperada do Module B), processar diretamente
+                        if (message.file_data_b64) {
+                            console.log(`📥 Arquivo recuperado do Module B: ${message.filename}`);
+
+                            // Armazenar os dados do arquivo
+                            this.storeFileData(message.file_id, message.file_data_b64, message.filename, message.mime_type);
+
+                            // Exibir a mensagem do arquivo
+                            const isOwnFile = message.username === this.username;
+                            this.displayFileMessage(message, isOwnFile);
+                        } else {
+                            // Se for imagem, não exibir aqui (será exibida quando chunks chegarem)
+                            // Se for outro arquivo, exibir normalmente
+                            if (!this.isImageFile(message.filename, message.mime_type)) {
+                                const isOwnFile = message.username === this.username;
+                                this.displayFileMessage(message, isOwnFile);
+                            }
+                        }
                         break;
                     case 'FILE_CHUNK':
                         this.handleFileChunk(message);
@@ -1000,6 +1053,24 @@
                     // Armazenar arquivo completo
                     this.storeFileData(file_id, fullData, filename, mime_type);
 
+                    // Obter metadados do arquivo (username, etc)
+                    const metadata = this.fileMetadata[file_id] || {};
+                    const senderUsername = metadata.username || 'Desconhecido';
+                    const isOwnFile = senderUsername === this.username;
+
+                    // Só exibir se NÃO for arquivo próprio (arquivos próprios já foram exibidos no upload)
+                    if (!isOwnFile) {
+                        this.displayFileMessage({
+                            file_id: file_id,
+                            filename: filename,
+                            file_size: file_size,
+                            mime_type: mime_type,
+                            timestamp: metadata.timestamp || Date.now(),
+                            type: 'FILE_SHARE',
+                            username: senderUsername
+                        }, isOwnFile);
+                    }
+
                     // Limpar upload em progresso
                     delete this.inProgressUploads[file_id];
 
@@ -1042,28 +1113,48 @@
                 const fileId = message.file_id;
                 const isImage = this.isImageFile(message.filename, message.mime_type);
 
-                let actionHtml = '';
-                if (isImage) {
-                    // Para imagens, mostrar thumbnail que abre preview
-                    actionHtml = `<button class="file-action" onclick="window.chatApp.openImagePreview('${fileId}', '${this.escapeHtml(message.filename)}')">🔍 Visualizar</button>`;
-                } else {
-                    // Para outros arquivos, botão de download
-                    actionHtml = `<button class="file-action" onclick="window.chatApp.downloadFile('${fileId}', '${this.escapeHtml(message.filename)}')">⬇️ Download</button>`;
-                }
-
-                messageElement.innerHTML = `
+                let contentHtml = `
                     <div class="message-header">
                         <strong>${message.username}</strong> - ${timeStr}
                     </div>
                     <div class="message-content file-message ${isOwn ? 'own' : ''}">
+                `;
+
+                if (isImage) {
+                    // Para imagens, exibir diretamente
+                    if (this.fileStorage.has(fileId)) {
+                        const file = this.fileStorage.get(fileId);
+                        const url = URL.createObjectURL(file.blob);
+                        contentHtml += `
+                            <img class="image-thumbnail" src="${url}" alt="${this.escapeHtml(message.filename)}" 
+                                 onclick="window.chatApp.openImagePreview('${fileId}', '${this.escapeHtml(message.filename)}')">
+                            <div style="font-size: 0.85rem; margin-top: 8px; opacity: 0.8;">${this.escapeHtml(message.filename)}</div>
+                            <div style="font-size: 0.8rem; opacity: 0.7;">${fileSize}</div>
+                        `;
+                    } else {
+                        contentHtml += `
+                            <div class="file-info" style="color: #999;">
+                                🖼️ <span class="file-name">${this.escapeHtml(message.filename)}</span>
+                            </div>
+                            <div style="font-size: 0.85rem; color: #999; font-style: italic; margin-top: 8px;">Imagem não existe mais</div>
+                        `;
+                    }
+                } else {
+                    // Para outros arquivos, botão de download
+                    contentHtml += `
                         <div class="file-info">
                             📎 <span class="file-name">${this.escapeHtml(message.filename)}</span>
                         </div>
                         <div class="file-size">${fileSize}</div>
-                        ${actionHtml}
+                        <button class="file-action" onclick="window.chatApp.downloadFile('${fileId}', '${this.escapeHtml(message.filename)}')">⬇️ Download</button>
+                    `;
+                }
+
+                contentHtml += `
                     </div>
                 `;
 
+                messageElement.innerHTML = contentHtml;
                 this.messagesContainer.appendChild(messageElement);
                 this.scrollToBottom();
             }

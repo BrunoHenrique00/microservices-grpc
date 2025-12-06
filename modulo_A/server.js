@@ -11,6 +11,9 @@ const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
 const path = require("path");
 
+// Escapa caracteres especiais para uso seguro em regex dinâmico
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 // Configuração para carregar o arquivo .proto
 const PROTO_PATH = path.join(__dirname, "protos", "servico.proto");
 
@@ -86,6 +89,11 @@ class ServicoAImpl {
   palavraContagem = new Map();
 
   /**
+   * Lista de palavras proibidas (minúsculas)
+   */
+  forbiddenWords = new Set(["fdp", "ofensa", "reprovei"]);
+
+  /**
    * Processa os dados de acordo com a operação solicitada
    * @param {string} data - Dados para processar
    * @param {string} operation - Tipo de operação
@@ -127,6 +135,18 @@ class ServicoAImpl {
           .split(" ")
           .filter(Boolean);
 
+        // Remoção/substituição de palavras proibidas
+        let filteredMessage = cleanedMessage;
+        if (this.forbiddenWords.size > 0) {
+          const pattern = new RegExp(
+            `\\b(${Array.from(this.forbiddenWords)
+              .map((w) => escapeRegExp(w))
+              .join("|")})\\b`,
+            "gi",
+          );
+          filteredMessage = filteredMessage.replace(pattern, "[REMOVIDO]");
+        }
+
         for (const palavra of palavras) {
           const atual = this.palavraContagem.get(palavra) || 0;
           this.palavraContagem.set(palavra, atual + 1);
@@ -142,7 +162,7 @@ class ServicoAImpl {
         );
 
         // Exemplo: Adicionar timestamp de processamento
-        return `${cleanedMessage}`;
+        return `${filteredMessage}`;
       }
 
       default:

@@ -110,9 +110,6 @@ class ConnectionManager:
         
         # Enviar lista de usuários online para o novo usuário
         await self.send_online_users(websocket, room_id)
-        
-        # Enviar histórico de mensagens para o novo usuário
-        await self.send_message_history(websocket, room_id)
     
     def disconnect(self, user_id: str, room_id: str = "global"):
         if room_id in self.active_connections and user_id in self.active_connections[room_id]:
@@ -135,7 +132,6 @@ class ConnectionManager:
     async def broadcast_to_room(self, room_id: str, message: dict, exclude_user: str = None):
         if room_id not in self.active_connections:
             return
-        logger.info(f"Broadcasting message to room {room_id}: {message}")
         # Só processa mensagens do tipo MESSAGE
         processed_message = message.copy()
         if message.get("type") == "MESSAGE":
@@ -184,11 +180,39 @@ class ConnectionManager:
                 "total_count": len(users_list)
             }, websocket)
     
-    async def send_message_history(self, websocket: WebSocket, room_id: str, limit: int = 50):
+    async def send_message_history(self, websocket: WebSocket, room_id: str, chat_client, limit: int = 50):
+        """
+        Envia histórico de mensagens para o novo usuário.
+        Para mensagens do tipo FILE_SHARE, recupera o conteúdo do arquivo do Module B.
+        """
         if room_id in self.message_history:
             recent_messages = self.message_history[room_id][-limit:]
             for message in recent_messages:
-                await self.send_personal_message(message, websocket)
+                # Se for um arquivo compartilhado, recuperar do Module B
+                if message.get("type") == "FILE_SHARE" and "file_id" in message:
+                    file_id = message["file_id"]
+                    logger.info(f"📥 Recuperando arquivo {file_id} para novo usuário...")
+                    
+                    # Chamar Module B para obter o arquivo
+                    file_result = chat_client.retrieve_file_from_module_b(file_id, room_id)
+                    
+                    if file_result.get("success"):
+                        # Adicionar dados do arquivo à mensagem
+                        message_with_file = message.copy()
+                        message_with_file["file_data_b64"] = file_result.get("file_data_b64")
+                        message_with_file["file_retrieved"] = True
+                        await self.send_personal_message(message_with_file, websocket)
+                        logger.info(f"✅ Arquivo {file_id} enviado para novo usuário")
+                    else:
+                        # Se falhar, enviar apenas a mensagem sem os dados
+                        logger.warning(f"⚠️ Falha ao recuperar arquivo {file_id}, enviando apenas metadados")
+                        message_with_error = message.copy()
+                        message_with_error["file_error"] = file_result.get("error")
+                        message_with_error["file_retrieved"] = False
+                        await self.send_personal_message(message_with_error, websocket)
+                else:
+                    # Mensagens normais
+                    await self.send_personal_message(message, websocket)
     
     def store_message(self, room_id: str, message: dict):
         if room_id not in self.message_history:
@@ -389,6 +413,85 @@ class GrpcChatClient:
         except Exception as e:
             logger.error(f"Erro ao obter usuários online: {str(e)}")
             return []
+    
+    def retrieve_file_from_module_b(self, file_id: str, room_id: str) -> Dict[str, Any]:
+        """
+        Recupera arquivo do Module B usando server-streaming via ReceiveFiles
+        Retorna o arquivo em partes que devem ser montadas
+        """
+        try:
+            logger.info(f"📥 Recuperando arquivo {file_id} do Module B...")
+            
+            channel = grpc.insecure_channel(f'{self.modulo_b_host}:{self.modulo_b_port}')
+            stub = servico_pb2_grpc.FileServiceStub(channel)
+            
+            # Fazer requisição para obter arquivo
+            request = servico_pb2.FileRequest(
+                room_id=room_id,
+                file_id=file_id
+            )
+            
+            # Receber arquivo em chunks via server-streaming
+            chunks = []
+            file_metadata = {}
+            total_size = 0
+            
+            for chunk_response in stub.ReceiveFiles(request, timeout=120):
+                chunks.append({
+                    "index": chunk_response.chunk_index,
+                    "data": chunk_response.chunk_data
+                })
+                total_size += len(chunk_response.chunk_data)
+                
+                # Armazenar metadados do primeiro chunk
+                if chunk_response.chunk_index == 0:
+                    file_metadata = {
+                        "file_id": chunk_response.file_id,
+                        "filename": chunk_response.filename,
+                        "mime_type": chunk_response.mime_type,
+                        "user_id": chunk_response.user_id,
+                        "username": chunk_response.username,
+                        "room_id": chunk_response.room_id,
+                        "file_size": chunk_response.file_size,
+                        "total_chunks": chunk_response.total_chunks
+                    }
+                
+                logger.info(f"📥 Chunk {chunk_response.chunk_index + 1}/{chunk_response.total_chunks} recebido: {len(chunk_response.chunk_data)} bytes")
+            
+            channel.close()
+            
+            # Combinar chunks em ordem
+            sorted_chunks = sorted(chunks, key=lambda x: x["index"])
+            file_data = b"".join([chunk["data"] for chunk in sorted_chunks])
+            
+            logger.info(f"✅ Arquivo {file_metadata.get('filename')} recuperado: {total_size} bytes")
+            
+            return {
+                "success": True,
+                "file_id": file_metadata.get("file_id"),
+                "filename": file_metadata.get("filename"),
+                "mime_type": file_metadata.get("mime_type"),
+                "user_id": file_metadata.get("user_id"),
+                "username": file_metadata.get("username"),
+                "room_id": file_metadata.get("room_id"),
+                "file_size": total_size,
+                "file_data_b64": base64.b64encode(file_data).decode('utf-8')
+            }
+        
+        except grpc.RpcError as e:
+            logger.error(f"❌ Erro ao recuperar arquivo do Module B: {e.details()}")
+            return {
+                "success": False,
+                "error": f"Erro ao recuperar arquivo: {e.details()}",
+                "file_id": file_id
+            }
+        except Exception as e:
+            logger.error(f"❌ Erro ao recuperar arquivo: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Erro ao recuperar arquivo: {str(e)}",
+                "file_id": file_id
+            }
     
     def start_file_upload(self, file_id: str, filename: str, mime_type: str, file_size: int, user_id: str, username: str, room_id: str):
         """
@@ -658,6 +761,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str =
     """
     WebSocket endpoint para chat em tempo real
     Integração com Module A para processamento de mensagens via gRPC
+    Integração com Module B para recuperação de arquivos via gRPC
+    
     Parâmetros:
     - room_id: ID da sala de chat
     - username: Nome do usuário (query parameter)
@@ -668,6 +773,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str =
     3. Module P envia para Module A processar (gRPC)
     4. Module A processa e retorna
     5. Module P distribui a mensagem processada para outros usuários
+    
+    FLUXO DE ARQUIVOS NO HISTÓRICO:
+    1. Novo usuário conecta
+    2. Module P busca histórico de mensagens
+    3. Para cada arquivo no histórico, recupera do Module B via ReceiveFiles()
+    4. Envia arquivo para o novo usuário
     """
     if not username:
         await websocket.close(code=4000, reason="Username is required")
@@ -678,6 +789,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str =
     
     try:
         await manager.connect(websocket, user_id, username, room_id)
+        
+        # Enviar histórico de mensagens com arquivos recuperados do Module B
+        await manager.send_message_history(websocket, room_id, chat_client)
         
         while True:
             # Recebe mensagens do cliente WebSocket
@@ -748,9 +862,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str =
                         "processed_by": "module_b"
                     }
                     
-                    # Armazenar e fazer broadcast para TODOS os usuários na sala (incluindo o uploader)
+                    # Armazenar e fazer broadcast para outros usuários na sala (excluindo o uploader)
                     manager.store_message(room_id, file_message)
-                    await manager.broadcast_to_room(room_id, file_message)
+                    await manager.broadcast_to_room(room_id, file_message, exclude_user=user_id)
                     
                     # Enviar dados do arquivo em chunks para todos os usuários (exceto uploader que já tem)
                     file_data_b64 = upload_result.get("file_data_b64", "")
@@ -781,8 +895,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str =
                                 "room_id": room_id
                             }
                             
-                            # Enviar para TODOS os usuários (para que receberem e armazenem)
-                            await manager.broadcast_to_room(room_id, file_chunk_message)
+                            # Enviar para outros usuários (excluindo uploader que já tem o arquivo)
+                            await manager.broadcast_to_room(room_id, file_chunk_message, exclude_user=user_id)
                     
                     logger.info(f"📤 Arquivo distribuído para sala {room_id}")
                 else:
@@ -956,7 +1070,7 @@ async def send_message_http(room_id: str, request: ChatMessageRequest):
         
         # Armazenar e broadcast localmente (em produção, seria via Module A)
         manager.store_message(room_id, chat_message)
-        await manager.broadcast_to_room(room_id, chat_message)
+        await manager.broadcast_to_room(room_id, chat_message, exclude_user=request.username)
         
         return {
             "success": True,
