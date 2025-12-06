@@ -8,6 +8,8 @@
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
 const path = require("path");
+const express = require("express");
+const client = require("prom-client");
 
 // Configuração para carregar o arquivo .proto
 const PROTO_PATH = path.join(__dirname, "protos", "servico.proto");
@@ -22,6 +24,41 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 
 // Carrega o package gRPC
 const servicoProto = grpc.loadPackageDefinition(packageDefinition).servicoapp;
+
+// MÉTRICAS PROMETHEUS
+
+// 1. Coletar métricas padrão do Node.js (CPU, Memória, etc.)
+const collectDefaultMetrics = client.collectDefaultMetrics;
+collectDefaultMetrics();
+
+/**
+ * Inicializar servidor HTTP para expor métricas
+ */
+function startMetricsServer() {
+  const app = express();
+
+  // Rota para o Prometheus ler as métricas
+  app.get("/metrics", async (req, res) => {
+    try {
+      res.set("Content-Type", client.register.contentType);
+      res.end(await client.register.metrics());
+    } catch (ex) {
+      res.status(500).end(ex);
+    }
+  });
+
+  // Health check endpoint
+  app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok", service: "modulo-b" });
+  });
+
+  const port = 5002;
+  app.listen(port, () => {
+    console.log(`📊 Servidor HTTP/Metrics rodando na porta ${port}`);
+    console.log(`   - Métricas: http://localhost:${port}/metrics`);
+    console.log(`   - Health: http://localhost:${port}/health`);
+  });
+}
 
 /**
  * Implementação do FileService
@@ -74,7 +111,7 @@ class FileServiceImpl {
           console.log(`   Nome: ${chunk.filename}`);
           console.log(`   Usuário: ${chunk.username}`);
           console.log(
-            `   Tamanho: ${(chunk.file_size / 1024 / 1024).toFixed(2)}MB`,
+            `   Tamanho: ${(chunk.file_size / 1024 / 1024).toFixed(2)}MB`
           );
           console.log(`   Total de chunks: ${chunk.total_chunks}`);
 
@@ -85,7 +122,7 @@ class FileServiceImpl {
                 this.maxFileSize /
                 1024 /
                 1024
-              ).toFixed(0)}MB`,
+              ).toFixed(0)}MB`
             );
             call.emit("error", {
               code: grpc.status.INVALID_ARGUMENT,
@@ -102,7 +139,7 @@ class FileServiceImpl {
               this.maxChunkSize /
               1024 /
               1024
-            ).toFixed(0)}MB`,
+            ).toFixed(0)}MB`
           );
           call.emit("error", {
             code: grpc.status.INVALID_ARGUMENT,
@@ -124,7 +161,7 @@ class FileServiceImpl {
           `📥 [FileService] Chunk ${chunk.chunk_index + 1}/${
             chunk.total_chunks
           } recebido ` +
-            `(${(uploadSession.totalSize / 1024 / 1024).toFixed(2)}MB)`,
+            `(${(uploadSession.totalSize / 1024 / 1024).toFixed(2)}MB)`
         );
 
         // Se todos os chunks foram recebidos
@@ -147,7 +184,7 @@ class FileServiceImpl {
         uploadSession.receivedChunks < uploadSession.expectedChunks
       ) {
         console.warn(
-          `⚠️ [FileService] Upload incompleto: ${uploadSession.receivedChunks}/${uploadSession.expectedChunks} chunks`,
+          `⚠️ [FileService] Upload incompleto: ${uploadSession.receivedChunks}/${uploadSession.expectedChunks} chunks`
         );
       }
     });
@@ -168,7 +205,7 @@ class FileServiceImpl {
       const fileData = Buffer.concat(
         uploadSession.chunks
           .sort((a, b) => a.index - b.index)
-          .map((c) => c.data),
+          .map((c) => c.data)
       );
 
       // ================================
@@ -180,7 +217,7 @@ class FileServiceImpl {
       if (Math.abs(calculatedSize - metadata.file_size) > 1024) {
         // Tolerância de 1KB para diferenças
         console.warn(
-          `⚠️  [FileService] Discrepância de tamanho: esperado ${metadata.file_size}, recebido ${calculatedSize}`,
+          `⚠️  [FileService] Discrepância de tamanho: esperado ${metadata.file_size}, recebido ${calculatedSize}`
         );
       }
 
@@ -199,7 +236,7 @@ class FileServiceImpl {
       const isSafe = this.validateFileContent(metadata.filename, fileData);
       if (!isSafe) {
         console.error(
-          `🚨 [FileService] Arquivo possivelmente malicioso: ${metadata.filename}`,
+          `🚨 [FileService] Arquivo possivelmente malicioso: ${metadata.filename}`
         );
         const errorResponse = {
           success: false,
@@ -231,15 +268,15 @@ class FileServiceImpl {
       this.files.set(metadata.file_id, fileInfo);
 
       console.log(
-        `✅ [FileService] Arquivo ${metadata.filename} salvo com sucesso`,
+        `✅ [FileService] Arquivo ${metadata.filename} salvo com sucesso`
       );
       console.log(`   ID: ${metadata.file_id}`);
       console.log(
-        `   Tamanho final: ${(fileData.length / 1024 / 1024).toFixed(2)}MB`,
+        `   Tamanho final: ${(fileData.length / 1024 / 1024).toFixed(2)}MB`
       );
       console.log(`   Checksum SHA256: ${checksum}`);
       console.log(
-        `   Status de segurança: ${isSafe ? "✅ Seguro" : "⚠️  Suspeito"}`,
+        `   Status de segurança: ${isSafe ? "✅ Seguro" : "⚠️  Suspeito"}`
       );
 
       // Notificar subscribers sobre o novo arquivo
@@ -364,13 +401,13 @@ class FileServiceImpl {
     const fileStr = fileData.toString(
       "utf-8",
       0,
-      Math.min(10000, fileData.length),
+      Math.min(10000, fileData.length)
     );
 
     for (const pattern of dangerousPatterns) {
       if (pattern.test(fileStr)) {
         console.warn(
-          `⚠️  [FileService] Padrão suspeito encontrado: ${pattern}`,
+          `⚠️  [FileService] Padrão suspeito encontrado: ${pattern}`
         );
         // Não rejeitar ainda, apenas alertar
       }
@@ -389,7 +426,7 @@ class FileServiceImpl {
     const ext = filename.substring(filename.lastIndexOf(".")).toLowerCase();
     if (dangerousExtensions.includes(ext)) {
       console.warn(
-        `⚠️  [FileService] Extensão potencialmente perigosa: ${ext}`,
+        `⚠️  [FileService] Extensão potencialmente perigosa: ${ext}`
       );
     }
 
@@ -400,7 +437,7 @@ class FileServiceImpl {
           fileData.length /
           1024 /
           1024
-        ).toFixed(2)}MB`,
+        ).toFixed(2)}MB`
       );
       return false;
     }
@@ -432,7 +469,7 @@ class FileServiceImpl {
       } else {
         // Caso contrário, retornar todos os arquivos da sala
         files = Array.from(this.files.values()).filter(
-          (f) => f.room_id === room_id,
+          (f) => f.room_id === room_id
         );
       }
 
@@ -454,7 +491,7 @@ class FileServiceImpl {
         console.log(
           `📤 [FileService] Enviando arquivo ${fileIndex + 1}/${
             files.length
-          }: ${file.filename}`,
+          }: ${file.filename}`
         );
 
         let chunkIndex = 0;
@@ -512,7 +549,7 @@ class FileServiceImpl {
     let username = null;
 
     console.log(
-      `🔄 [FileService] Nova conexão de distribuição de arquivo iniciada`,
+      `🔄 [FileService] Nova conexão de distribuição de arquivo iniciada`
     );
 
     call.on("data", (fileMessage) => {
@@ -539,9 +576,7 @@ class FileServiceImpl {
         // Receber e fazer broadcast do arquivo
         console.log(
           `📤 [FileService] Distribuindo arquivo: ${fileMessage.filename} ` +
-            `(chunk ${fileMessage.chunk_index + 1}/${
-              fileMessage.total_chunks
-            })`,
+            `(chunk ${fileMessage.chunk_index + 1}/${fileMessage.total_chunks})`
         );
 
         // Broadcast para todos os usuários da sala (exceto o remetente)
@@ -553,7 +588,7 @@ class FileServiceImpl {
 
     call.on("end", () => {
       console.log(
-        `👋 [FileService] Distribuidor ${username} (${user_id}) encerrou conexão`,
+        `👋 [FileService] Distribuidor ${username} (${user_id}) encerrou conexão`
       );
       if (room_id && this.distributionStreams.has(room_id)) {
         this.distributionStreams.get(room_id).delete(user_id);
@@ -588,7 +623,7 @@ class FileServiceImpl {
     const disconnectedUsers = [];
 
     console.log(
-      `📡 [FileService] Fazendo broadcast de ${fileInfo.filename} para ${roomDistributors.size} usuários`,
+      `📡 [FileService] Fazendo broadcast de ${fileInfo.filename} para ${roomDistributors.size} usuários`
     );
 
     for (const [user_id, call] of roomDistributors.entries()) {
@@ -636,7 +671,7 @@ class FileServiceImpl {
       } catch (error) {
         console.error(
           `❌ [FileService] Erro ao enviar para usuário ${user_id}:`,
-          error,
+          error
         );
         disconnectedUsers.push(user_id);
       }
@@ -674,7 +709,7 @@ class FileServiceImpl {
       } catch (error) {
         console.error(
           `❌ [FileService] Erro ao fazer broadcast do chunk:`,
-          error,
+          error
         );
         disconnectedUsers.push(user_id);
       }
@@ -727,7 +762,7 @@ class FileServiceImpl {
       total_files: this.files.size,
       total_size: Array.from(this.files.values()).reduce(
         (sum, f) => sum + f.file_size,
-        0,
+        0
       ),
       rooms: roomStats,
     };
@@ -772,7 +807,7 @@ function startServer() {
 
       // Inicia o servidor
       server.start();
-    },
+    }
   );
 
   // Graceful shutdown
@@ -796,7 +831,24 @@ function startServer() {
 // Inicia o servidor se este arquivo for executado diretamente
 if (require.main === module) {
   console.log("🔧 Inicializando Módulo B (FileService)...");
+  console.log("");
+
+  // Iniciar servidor de métricas (gRPC)
+  startMetricsServer();
+
+  // Iniciar servidor gRPC
   startServer();
+
+  // Iniciar servidor REST em um processo separado
+  const { spawn } = require("child_process");
+  const restServer = spawn("node", ["server_rest.js"], {
+    cwd: __dirname,
+    stdio: "inherit",
+  });
+
+  restServer.on("error", (err) => {
+    console.error("❌ Erro ao iniciar servidor REST:", err);
+  });
 }
 
 module.exports = { FileServiceImpl, startServer };

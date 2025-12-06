@@ -33,4 +33,4 @@ EXPOSE 50052
 EXPOSE 5002
 
 # Comando para iniciar os servidores gRPC e REST
-CMD ["sh", "-c", "node server.js & node server_rest.js"]
+CMD ["node", "server.js"]
