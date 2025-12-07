@@ -5,7 +5,7 @@
  */
 
 require("./metrics");
-import("./metrics");
+import("./metrics.js");
 
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
@@ -50,7 +50,7 @@ class ServicoAImpl {
       // Simula processamento da tarefa
       const processedData = this.processarDados(
         request.data,
-        request.operation,
+        request.operation
       );
 
       // Prepara a resposta
@@ -62,7 +62,7 @@ class ServicoAImpl {
       };
 
       console.log(
-        `✅ [ServicoA] Processamento concluído para ID: ${request.id}`,
+        `✅ [ServicoA] Processamento concluído para ID: ${request.id}`
       );
       console.log(`   Resultado: ${response.result}`);
 
@@ -142,7 +142,7 @@ class ServicoAImpl {
             `\\b(${Array.from(this.forbiddenWords)
               .map((w) => escapeRegExp(w))
               .join("|")})\\b`,
-            "gi",
+            "gi"
           );
           filteredMessage = filteredMessage.replace(pattern, "[REMOVIDO]");
         }
@@ -158,7 +158,7 @@ class ServicoAImpl {
           .slice(0, 3);
         console.log(
           `📊 Top 3 palavras mais faladas: ` +
-            topPalavras.map(([p, c]) => `${p} (${c})`).join(", "),
+            topPalavras.map(([p, c]) => `${p} (${c})`).join(", ")
         );
 
         // Exemplo: Adicionar timestamp de processamento
@@ -256,7 +256,7 @@ class UserServiceImpl {
       this.onlineUsers.get(room_id).add(user_id);
 
       console.log(
-        `✅ [UserService] User ${cleanUsername} logged in successfully`,
+        `✅ [UserService] User ${cleanUsername} logged in successfully`
       );
       console.log(`   User ID: ${user_id}`);
       console.log(`   Room: ${room_id}`);
@@ -321,7 +321,7 @@ class UserServiceImpl {
       };
 
       console.log(
-        `✅ [UserService] Found ${users.length} online users in room ${room_id}`,
+        `✅ [UserService] Found ${users.length} online users in room ${room_id}`
       );
       callback(null, response);
     } catch (error) {
@@ -384,7 +384,7 @@ class UserServiceImpl {
       };
 
       console.log(
-        `✅ [UserService] Status updated for ${userInfo.username}: ${status}`,
+        `✅ [UserService] Status updated for ${userInfo.username}: ${status}`
       );
       callback(null, response);
     } catch (error) {
@@ -409,7 +409,7 @@ class UserServiceImpl {
     for (const [user_id, userInfo] of this.users.entries()) {
       if (now - userInfo.last_seen > inactiveThreshold) {
         console.log(
-          `🧹 [UserService] Cleaning up inactive user: ${userInfo.username}`,
+          `🧹 [UserService] Cleaning up inactive user: ${userInfo.username}`
         );
 
         const room_id = userInfo.room_id;
@@ -487,7 +487,7 @@ function startServer() {
 
       // Inicia o servidor
       server.start();
-    },
+    }
   );
 
   // Graceful shutdown
