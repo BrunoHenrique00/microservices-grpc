@@ -473,27 +473,6 @@ Este projeto demonstrou a importância crítica da observabilidade em ambientes 
    - Problema: Dados do Locust (RPS, latência) precisavam ser correlacionados com métricas Prometheus (CPU, memória)
    - Solução: Exportar timestamps sincronizados e criar dashboards unificadas no Grafana
 
-### 7.3 Recomendações Futuras para Produção
-
-Com base nos resultados dos testes, as seguintes otimizações são críticas antes de produção:
-
-1. **Curto Prazo (1-2 semanas):**
-
-   - Aumentar réplicas do Módulo P para 3-5
-   - Implementar connection pooling no M\u00f3dulo P para conex\u00f5es gRPC
-   - Adicionar rate limiting (ex: 500 req/s por pod)
-
-2. **Médio Prazo (1 m\u00eas):**
-
-   - Cache Redis para respostas GET (mensagens, usuários)
-   - Circuit breaker com timeout de 100ms em chamadas gRPC
-   - HPA configurado para escalar com métrica de latência (>50ms)
-
-3. **Longo Prazo:**
-   - Service mesh (Istio) para retry automático e timeouts
-   - Tracing distribuído (Jaeger) para identificar gargalos entre módulos
-   - Profiling de CPU/memória para otimizar código do gateway
-
 ---
 
 ## 8. Comentários Pessoais dos Alunos
