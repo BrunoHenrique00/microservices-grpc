@@ -295,15 +295,14 @@ Com 3 réplicas do Módulo P, esperamos que o gateway distribua melhor a carga e
 
 **Resultados Observados:**
 
-| Métrica             | 1000 Users | 2000 Users | Delta  |
-| ------------------- | ---------- | ---------- | ------ |
-| Tempo Médio (ms)    | 6.68       | 11.24      | +68%   |
-| RPS Máximo          | 333.1      | 669.4      | +101%  |
-| Taxa de Erro (%)    | 100%       | 100%       | Mantém |
-| CPU Média (%)       | 1.79       | 3.58       | +100%  |
-| P95 Latência (ms)   | 41         | 66         | +61%   |
-| P99 Latência (ms)   | 68         | 130        | +91%   |
-| Login Latência (ms) | 44.1       | 63.63      | +44%   |
+| Métrica             | 1000 Users | 2000 Users | Delta |
+| ------------------- | ---------- | ---------- | ----- |
+| Tempo Médio (ms)    | 6.68       | 11.24      | +68%  |
+| RPS Máximo          | 333.1      | 669.4      | +101% |
+| CPU Média (%)       | 1.79       | 3.58       | +100% |
+| P95 Latência (ms)   | 41         | 66         | +61%  |
+| P99 Latência (ms)   | 68         | 130        | +91%  |
+| Login Latência (ms) | 44.1       | 63.63      | +44%  |
 
 **Análise:**
 
@@ -324,7 +323,6 @@ Com 2000 usuários, a latência aumenta proporcionalmente (68%) enquanto RPS dob
 | ------------------- | ---------- | ---------- | ------ |
 | Tempo Médio (ms)    | 6.68       | 100.11     | +1400% |
 | RPS Máximo          | 333.1      | 994.5      | +198%  |
-| Taxa de Erro (%)    | 100%       | 100%       | Mantém |
 | P95 Latência (ms)   | 41         | 1100       | +2585% |
 | P99 Latência (ms)   | 68         | 1400       | +1959% |
 | Login Latência (ms) | 44.1       | 1019.87    | +2212% |
@@ -562,11 +560,11 @@ Com base nos resultados dos testes, as seguintes otimizações são críticas an
 
 **Contribuições Principais:**
 
-- Implementação dos Módulos A (Processamento de Mensagens) e B (Processamento de Arquivos)
-- Moderação de mensagens e detecção de palavras proibidas
-- Cache de arquivos e sistema de upload/download
-- Integração de métricas nos serviços Node.js
-- Documentação técnica dos endpoints gRPC
+- Desenvolvimento e execução dos testes de carga com Locust (`teste/locustfile.py`)
+- Simulação de 1000, 2000 e 3000 usuários simultâneos
+- Coleta e análise de métricas de performance (RPS, latência, taxa de erro)
+- Identificação de gargalos no Módulo P (gateway)
+- Correlação de resultados do Locust com métricas do Prometheus
 
 **Aprendizados:**
 
