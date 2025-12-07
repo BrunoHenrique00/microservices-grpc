@@ -10,7 +10,6 @@ services:
       - prometheus-data:/prometheus
     networks:
       - monitoring-network
-      - grpc-network
     restart: unless-stopped
 
   grafana:
@@ -27,7 +26,30 @@ services:
       - grafana-storage:/var/lib/grafana
     networks:
       - monitoring-network
-      - grpc-network
+    restart: unless-stopped
+
+  # --- ADIÇÃO: LOKI (Log Storage) ---
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+
+  # --- ADIÇÃO: PROMTAIL (Log Collector) ---
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: promtail
+    volumes:
+      - ./docker-monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - monitoring-network
     restart: unless-stopped
 
   # ===== GRPC MICROSERVICES =====
@@ -42,6 +64,10 @@ services:
       - "5001:5001"
     networks:
       - grpc-network
+    # Labels para o Promtail identificar melhor este serviço (opcional, mas recomendado)
+    labels:
+      logging: "promtail"
+      service: "modulo-a"
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "50051"]
       interval: 30s
@@ -60,6 +86,9 @@ services:
       - "5002:5002"
     networks:
       - grpc-network
+    labels:
+      logging: "promtail"
+      service: "modulo-b"
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "50052"]
       interval: 30s
@@ -67,14 +96,14 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # Módulo P - Gateway/Proxy (Python FastAPI) - Agora com WebSocket para Chat
+  # Módulo P - Gateway/Proxy (Python FastAPI)
   modulo-p:
     build:
       context: .
       dockerfile: modulo_P/Dockerfile
     container_name: modulo-p-chat-gateway
     ports:
-      - "8000:8000" # HTTP/WebSocket para frontend
+      - "8000:8000"
     environment:
       - MODULO_A_HOST=modulo-a
       - MODULO_A_PORT=50051
@@ -85,6 +114,9 @@ services:
     depends_on:
       - modulo-a
       - modulo-b
+    labels:
+      logging: "promtail"
+      service: "modulo-p"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -104,6 +136,9 @@ services:
       - grpc-network
     depends_on:
       - modulo-p
+    labels:
+      logging: "promtail"
+      service: "frontend"
     restart: unless-stopped
 
 networks:
@@ -113,7 +148,6 @@ networks:
     driver: bridge
     name: projeto-distribuido-network
 
-# Volumes para persistência
 volumes:
   prometheus-data:
   grafana-storage:
