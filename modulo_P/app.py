@@ -20,13 +20,16 @@ import uuid
 import base64
 from datetime import datetime
 import logging
-from prometheus_fastapi_instrumentator import Instrumentator
+import time
+# [IMPORTANTE] Importando metrics para instrumentação avançada
+from prometheus_fastapi_instrumentator import Instrumentator, metrics
+from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry, generate_latest, CONTENT_TYPE_LATEST
+from fastapi.responses import Response
 
 # Adiciona o diretório dos protobuf ao path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'protos'))
 
 # Importa os stubs gerados a partir do .proto
-# Nota: Execute 'python -m grpc_tools.protoc' para gerar os stubs
 try:
     import servico_pb2
     import servico_pb2_grpc
@@ -36,12 +39,122 @@ except ImportError:
 
 app = FastAPI(title="Módulo P - Chat Gateway", version="2.0.0")
 
-Instrumentator().instrument(app).expose(app)
+# ==============================================================================
+# MÉTRICAS CUSTOMIZADAS PARA WEBSOCKET
+# ==============================================================================
+# Contador de conexões WebSocket (tentativas)
+websocket_connections_total = Counter(
+    'websocket_connections_total',
+    'Total WebSocket connection attempts',
+    ['status']  # success ou failed
+)
+
+# Conexões por sala (opcional, para debug)
+websocket_active_connections = Gauge(
+    'websocket_active_connections',
+    'Current active WebSocket connections',
+    ['room_id']
+)
+
+# Mensagens enviadas via WebSocket
+websocket_messages_total = Counter(
+    'websocket_messages_total',
+    'Total messages sent via WebSocket',
+    ['room_id', 'type']
+)
+
+# Latência das operações WebSocket
+websocket_operation_duration = Histogram(
+    'websocket_operation_duration_seconds',
+    'WebSocket operation duration',
+    ['operation']
+)
+
+# Métrica HTTP customizada para endpoints não capturados pelo Instrumentator
+http_websocket_requests_total = Counter(
+    'http_websocket_requests_total',
+    'Total HTTP requests to WebSocket endpoints',
+    ['method', 'endpoint', 'status']
+)
+
+http_websocket_request_duration = Histogram(
+    'http_websocket_request_duration_seconds',
+    'WebSocket HTTP request duration',
+    ['method', 'endpoint']
+)
+# ==============================================================================
+
+# ==============================================================================
+# CONFIGURAÇÃO DO PROMETHEUS (Monitoramento)
+# ==============================================================================
+instrumentator = Instrumentator(
+    should_group_status_codes=False, # Garante que apareça 200, 404, 500 individualmente
+    should_ignore_untemplated=True,  # Ignora rotas malucas/aleatórias para não poluir
+    excluded_handlers=["/metrics", "/health", "/docs", "/openapi.json"], # Limpa os gráficos
+)
+
+# Adiciona explicitamente a métrica de latência com STATUS
+# Isso gera: _sum, _count e _bucket necessários para o cálculo de média
+instrumentator.add(
+    metrics.latency(
+        should_include_handler=True,
+        should_include_method=True,
+        should_include_status=True 
+    )
+)
+
+# Adiciona contagem de requests com STATUS (Necessário para taxas de erro 2xx/5xx)
+instrumentator.add(
+    metrics.requests(
+        should_include_handler=True,
+        should_include_method=True,
+        should_include_status=True
+    )
+)
+
+instrumentator.instrument(app).expose(app)
+
+@app.get("/metrics")
+async def metrics():
+    """
+    Endpoint que exporta todas as métricas do Prometheus
+    Inclui métricas HTTP padrão + métricas customizadas de WebSocket
+    """
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )
+
+@app.get("/metrics/debug")
+async def metrics_debug():
+    """
+    Endpoint de debug para verificar estado das métricas WebSocket
+    """
+    from prometheus_client import REGISTRY
+    
+    active_connections = sum([
+        len(conns)
+        for conns in manager.active_connections.values()
+    ])
+    
+    return {
+        "status": "ok",
+        "active_websocket_connections": active_connections,
+        "active_connections_by_room": {
+            room_id: len(conns)
+            for room_id, conns in manager.active_connections.items()
+        },
+        "message_history_rooms": list(manager.message_history.keys()),
+        "online_users_count": sum([
+            len(users)
+            for users in manager.online_users.values()
+        ])
+    }
+# ==============================================================================
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 # Modelos Pydantic para validação das requisições HTTP
 class ExecutarRequest(BaseModel):
@@ -81,6 +194,9 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, user_id: str, username: str, room_id: str = "global"):
         await websocket.accept()
         
+        # Incrementar métrica de conexões bem-sucedidas
+        websocket_connections_total.labels(status='success').inc()
+        
         if room_id not in self.active_connections:
             self.active_connections[room_id] = {}
             self.message_history[room_id] = []
@@ -96,6 +212,11 @@ class ConnectionManager:
             "status": "ONLINE",
             "joined_at": datetime.now().timestamp()
         }
+        
+        # Atualizar gauge de conexões ativas
+        websocket_active_connections.labels(room_id=room_id).set(len(self.active_connections.get(room_id, [])))
+        
+        logger.info(f"User {username} ({user_id}) connected to room {room_id}")
         
         logger.info(f"User {username} ({user_id}) connected to room {room_id}")
         
@@ -119,6 +240,10 @@ class ConnectionManager:
             if user_id in self.online_users.get(room_id, {}):
                 del self.online_users[room_id][user_id]
             
+            # Atualizar gauge de conexões ativas por sala
+            if room_id in self.active_connections:
+                websocket_active_connections.labels(room_id=room_id).set(len(self.active_connections[room_id]))
+            
             logger.info(f"User {username} ({user_id}) disconnected from room {room_id}")
             return username
         return None
@@ -130,8 +255,12 @@ class ConnectionManager:
             logger.error(f"Error sending personal message: {e}")
     
     async def broadcast_to_room(self, room_id: str, message: dict, exclude_user: str = None):
+        """Envia mensagem para todos os usuários da sala com instrumentação de métricas"""
         if room_id not in self.active_connections:
             return
+        
+        broadcast_start = time.time()
+        
         # Só processa mensagens do tipo MESSAGE
         processed_message = message.copy()
         if message.get("type") == "MESSAGE":
@@ -162,6 +291,10 @@ class ConnectionManager:
         # Remove conexões mortas
         for user_id in disconnected_users:
             self.disconnect(user_id, room_id)
+        
+        # Registrar métrica de latência
+        broadcast_duration = time.time() - broadcast_start
+        websocket_operation_duration.labels(operation='broadcast').observe(broadcast_duration)
     
     async def send_online_users(self, websocket: WebSocket, room_id: str):
         if room_id in self.online_users:
@@ -782,24 +915,38 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str =
     """
     if not username:
         await websocket.close(code=4000, reason="Username is required")
+        websocket_connections_total.labels(status='failed').inc()
+        http_websocket_requests_total.labels(method='WS', endpoint='/ws/connect', status='failed').inc()
         return
     
     # Gerar ID único para o usuário
     user_id = str(uuid.uuid4())
     
     try:
+        start_time = time.time()
         await manager.connect(websocket, user_id, username, room_id)
+        
+        # Registrar conexão bem-sucedida
+        websocket_connections_total.labels(status='success').inc()
+        websocket_active_connections.labels(room_id=room_id).inc()
+        http_websocket_requests_total.labels(method='WS', endpoint='/ws/connect', status='success').inc()
+        http_websocket_request_duration.labels(method='WS', endpoint='/ws/connect').observe(time.time() - start_time)
+        logger.info(f"✅ WebSocket conectado: {username} em {room_id}")
         
         # Enviar histórico de mensagens com arquivos recuperados do Module B
         await manager.send_message_history(websocket, room_id, chat_client)
         
         while True:
             # Recebe mensagens do cliente WebSocket
+            msg_start_time = time.time()
             data = await websocket.receive_text()
             message_data = json.loads(data)
             
             message_type = message_data.get("type", "MESSAGE")
             content = message_data.get("content", "")
+            
+            # Registrar métrica de mensagem recebida
+            websocket_messages_total.labels(room_id=room_id, type=message_type).inc()
             
             # ========================================
             # INTEGRAÇÃO COM MODULE A - Processamento de Mensagens
@@ -936,6 +1083,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str =
             
             # Criar mensagem estruturada com conteúdo processado
             if message_type == "MESSAGE":
+                # Incrementar contador de mensagens
+                websocket_messages_total.labels(room_id=room_id, type='text').inc()
+                
                 chat_message = {
                     "message_id": str(uuid.uuid4()),
                     "user_id": user_id,
@@ -957,6 +1107,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str =
                 logger.info(f"📤 Mensagem distribuída para sala {room_id}")
     except WebSocketDisconnect:
         username = manager.disconnect(user_id, room_id)
+        websocket_active_connections.labels(room_id=room_id).dec()
         if username:
             # Notificar outros usuários sobre a saída
             await manager.broadcast_to_room(room_id, {
@@ -966,8 +1117,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str =
                 "timestamp": datetime.now().timestamp(),
                 "message": f"{username} saiu do chat"
             })
+            logger.info(f"🔌 WebSocket desconectado: {username}")
     except Exception as e:
         logger.error(f"❌ WebSocket error for user {username}: {e}")
+        websocket_connections_total.labels(status='failed').inc()
+        websocket_active_connections.labels(room_id=room_id).dec()
         manager.disconnect(user_id, room_id)
 
 @app.post("/api/chat/login")

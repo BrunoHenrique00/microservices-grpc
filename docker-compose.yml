@@ -10,6 +10,7 @@ services:
       - prometheus-data:/prometheus
     networks:
       - monitoring-network
+      - grpc-network
     restart: unless-stopped
 
   grafana:
@@ -24,8 +25,10 @@ services:
       GF_INSTALL_PLUGINS: ""
     volumes:
       - grafana-storage:/var/lib/grafana
+      - ./docker-monitoring/grafana/provisioning:/etc/grafana/provisioning
     networks:
       - monitoring-network
+      - grpc-network
     restart: unless-stopped
 
   # --- ADIÇÃO: LOKI (Log Storage) ---
